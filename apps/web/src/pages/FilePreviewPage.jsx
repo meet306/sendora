@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { api } from '../lib/api';
+import { api, API_BASE } from '../lib/api';
 import { formatBytes } from '../lib/crypto';
 import { ArrowLeft, Download, File, Loader2 } from 'lucide-react';
 
@@ -25,7 +25,7 @@ export function FilePreviewPage() {
 
         if (isText) {
           const tokenParam = unlockToken ? `?unlock_token=${encodeURIComponent(unlockToken)}` : '';
-          return fetch(`/api/downloads/${id}/file/${fileId}/preview${tokenParam}`)
+          return fetch(`${API_BASE}/downloads/${id}/file/${fileId}/preview${tokenParam}`)
             .then(res => res.text())
             .then(t => setTextContent(t));
         }
@@ -68,8 +68,8 @@ export function FilePreviewPage() {
   const isText = ['txt', 'md', 'json', 'js', 'py', 'css', 'html'].includes(ext);
 
   const tokenParam = unlockToken ? `?unlock_token=${encodeURIComponent(unlockToken)}` : '';
-  const previewUrl = `/api/downloads/${id}/file/${file.id}/preview${tokenParam}`;
-  const downloadUrl = `/api/downloads/${id}/file/${file.id}${tokenParam}`;
+  const previewUrl = `${API_BASE}/downloads/${id}/file/${file.id}/preview${tokenParam}`;
+  const downloadUrl = `${API_BASE}/downloads/${id}/file/${file.id}${tokenParam}`;
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">

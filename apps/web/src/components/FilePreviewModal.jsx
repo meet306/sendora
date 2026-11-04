@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { formatBytes } from '../lib/crypto';
+import { API_BASE } from '../lib/api';
 import { X, Download, File, Loader2 } from 'lucide-react';
 
 export function FilePreviewModal({
@@ -21,8 +22,8 @@ export function FilePreviewModal({
   const isText = ['txt', 'md', 'json', 'js', 'py', 'css', 'html'].includes(ext);
 
   const tokenParam = unlockToken ? `?unlock_token=${encodeURIComponent(unlockToken)}` : '';
-  const previewUrl = `/api/downloads/${transferId}/file/${file.id}/preview${tokenParam}`;
-  const downloadUrl = `/api/downloads/${transferId}/file/${file.id}${tokenParam}`;
+  const previewUrl = `${API_BASE}/downloads/${transferId}/file/${file.id}/preview${tokenParam}`;
+  const downloadUrl = `${API_BASE}/downloads/${transferId}/file/${file.id}${tokenParam}`;
 
   useEffect(() => {
     setLoading(true);

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { api } from '../lib/api';
+import { api, API_BASE } from '../lib/api';
 import { formatBytes, getCountdown } from '../lib/crypto';
 import { getFileTypeIcon } from '../components/Dropzone';
 import { FilePreviewModal } from '../components/FilePreviewModal';
@@ -116,7 +116,7 @@ export function TransferDetailsPage() {
 
     for (const file of transfer.files) {
       const tokenParam = unlockToken ? `?unlock_token=${encodeURIComponent(unlockToken)}` : '';
-      const downloadUrl = `/api/downloads/${transfer.id}/file/${file.id}${tokenParam}`;
+      const downloadUrl = `${API_BASE}/downloads/${transfer.id}/file/${file.id}${tokenParam}`;
       const link = document.createElement('a');
       link.href = downloadUrl;
       link.download = file.safe_filename;
@@ -354,7 +354,7 @@ export function TransferDetailsPage() {
           <div className="space-y-2.5">
             {transfer.files?.map((file) => {
               const tokenParam = unlockToken ? `?unlock_token=${encodeURIComponent(unlockToken)}` : '';
-              const downloadUrl = `/api/downloads/${transfer.id}/file/${file.id}${tokenParam}`;
+              const downloadUrl = `${API_BASE}/downloads/${transfer.id}/file/${file.id}${tokenParam}`;
 
               return (
                 <div

@@ -1,2 +1,2 @@
-/*    /index.html   200
-
+/api/*  https://sendora-worker.pmeet6042.workers.dev/api/:splat  200
+/*      /index.html                                              200

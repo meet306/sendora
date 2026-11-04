@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useSearchParams, Link, useNavigate } from 'react-router-dom';
-import { api } from '../lib/api';
+import { api, API_BASE } from '../lib/api';
 import { formatBytes } from '../lib/crypto';
 import { getFileTypeIcon } from '../components/Dropzone';
 import {
@@ -297,7 +297,7 @@ export function RequestManagePage() {
                       </div>
 
                       <a
-                        href={`/api/downloads/${sub.id}/file/${f.id}?requester_token=${encodeURIComponent(requesterToken)}`}
+                        href={`${API_BASE}/downloads/${sub.id}/file/${f.id}?requester_token=${encodeURIComponent(requesterToken)}`}
                         download={f.safe_filename}
                         className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-accent text-white font-bold text-xs uppercase tracking-wider hover:bg-accent-hover transition-colors shadow-sm"
                       >

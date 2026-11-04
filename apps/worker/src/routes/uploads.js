@@ -164,8 +164,9 @@ app.get('/:uploadId/part/:partNumber/sign', async (c) => {
   }
 
   // Fallback to Worker streaming chunk proxy
+  const reqUrl = new URL(c.req.url);
   return c.json({
-    url: `/api/uploads/${uploadId}/part/${partNumber}`,
+    url: `${reqUrl.origin}/api/uploads/${uploadId}/part/${partNumber}`,
     method: 'PUT',
     partNumber,
     direct: false

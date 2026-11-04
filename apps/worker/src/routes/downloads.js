@@ -159,7 +159,9 @@ app.get('/:transferId/file/:fileId', async (c) => {
   const encodedUtf8Filename = encodeURIComponent(file.safe_filename);
 
   const headers = new Headers();
-  object.writeHttpMetadata(headers);
+  if (typeof object.writeHttpMetadata === 'function') {
+    object.writeHttpMetadata(headers);
+  }
   headers.set('etag', object.httpEtag || `"${file.id}"`);
   headers.set('Content-Type', file.mime_type || 'application/octet-stream');
   headers.set(
@@ -233,7 +235,9 @@ app.get('/:transferId/file/:fileId/preview', async (c) => {
 
   const safeAsciiFilename = file.safe_filename.replace(/[^\x20-\x7E]/g, '_').replace(/"/g, '');
   const headers = new Headers();
-  object.writeHttpMetadata(headers);
+  if (typeof object.writeHttpMetadata === 'function') {
+    object.writeHttpMetadata(headers);
+  }
   headers.set('etag', object.httpEtag || `"${file.id}"`);
   headers.set('Content-Type', previewMime);
   headers.set('Content-Disposition', `inline; filename="${safeAsciiFilename}"`);

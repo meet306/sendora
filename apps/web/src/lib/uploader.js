@@ -1,5 +1,6 @@
 // Client-side Multipart Upload Orchestrator
 import { computeFileSHA256 } from './crypto.js';
+import { API_BASE } from './api.js';
 
 export class MultipartUploader {
   /**
@@ -72,7 +73,7 @@ export class MultipartUploader {
       totalBytes: this.file.size
     });
 
-    const initRes = await fetch('/api/uploads/initiate', {
+    const initRes = await fetch(`${API_BASE}/uploads/initiate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -151,7 +152,7 @@ export class MultipartUploader {
       totalBytes: this.file.size
     });
 
-    const completeRes = await fetch(`/api/uploads/${upload_id}/complete`, {
+    const completeRes = await fetch(`${API_BASE}/uploads/${upload_id}/complete`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -186,7 +187,7 @@ export class MultipartUploader {
   async uploadPartWithRetry(uploadId, partNumber, chunk, retriesLeft = 3) {
     try {
       // Step A: Obtain sign URL
-      const signRes = await fetch(`/api/uploads/${uploadId}/part/${partNumber}/sign`, {
+      const signRes = await fetch(`${API_BASE}/uploads/${uploadId}/part/${partNumber}/sign`, {
         signal: this.abortController.signal
       });
 
@@ -237,7 +238,7 @@ export class MultipartUploader {
 
     if (this.uploadSession && this.uploadSession.upload_id) {
       try {
-        await fetch(`/api/uploads/${this.uploadSession.upload_id}/abort`, {
+        await fetch(`${API_BASE}/uploads/${this.uploadSession.upload_id}/abort`, {
           method: 'POST'
         });
       } catch (e) {

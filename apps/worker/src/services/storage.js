@@ -32,10 +32,8 @@ export function getStorageBucket(env) {
           buffer = body;
         } else if (body instanceof Uint8Array) {
           buffer = body.buffer;
-        } else if (body && typeof body.arrayBuffer === 'function') {
-          buffer = await body.arrayBuffer();
-        } else {
-          buffer = body;
+        } else if (body) {
+          buffer = await new Response(body).arrayBuffer();
         }
         await kv.put(key, buffer);
         return { key };
@@ -61,10 +59,8 @@ export function getStorageBucket(env) {
               buffer = body;
             } else if (body instanceof Uint8Array) {
               buffer = body.buffer;
-            } else if (body && typeof body.arrayBuffer === 'function') {
-              buffer = await body.arrayBuffer();
-            } else {
-              buffer = body;
+            } else if (body) {
+              buffer = await new Response(body).arrayBuffer();
             }
             const chunkKey = `_chunk:${uploadId}:${partNumber}`;
             await kv.put(chunkKey, buffer);
