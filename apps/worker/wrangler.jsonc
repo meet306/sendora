@@ -6,6 +6,7 @@
   "compatibility_flags": [
     "nodejs_compat"
   ],
+  "workers_dev": true,
   "d1_databases": [
     {
       "binding": "DB",
@@ -25,10 +26,10 @@
     ]
   },
   "vars": {
-    "ENVIRONMENT": "development",
+    "ENVIRONMENT": "production",
     "MAX_FILE_SIZE_BYTES": 209715200,
     "DEFAULT_EXPIRATION_HOURS": 24,
-    "APP_BASE_URL": "http://localhost:5173",
+    "APP_BASE_URL": "https://sendora.pages.dev",
     "R2_ACCOUNT_ID": "",
     "R2_ACCESS_KEY_ID": "",
     "R2_SECRET_ACCESS_KEY": "",
