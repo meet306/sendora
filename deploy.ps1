@@ -13,3 +13,4 @@ if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
 
 # Run the automated deployment script
 node scripts/deploy-cloudflare.js
+

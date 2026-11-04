@@ -1,5 +1,6 @@
 // Cleanup Service for Cloudflare Cron Triggers & Administrative maintenance
 // Ensures idempotent, resilient garbage collection of expired transfers, files, and orphaned multipart uploads
+import { getStorageBucket } from './storage.js';
 
 /**
  * Execute automated cleanup cycle
@@ -8,7 +9,7 @@
  */
 export async function runCleanupJob(env) {
   const db = env.DB;
-  const bucket = env.BUCKET;
+  const bucket = getStorageBucket(env);
   const now = Math.floor(Date.now() / 1000);
   const errors = [];
   let deletedTransfers = 0;

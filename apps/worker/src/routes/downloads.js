@@ -1,6 +1,7 @@
 // Download and File Preview Authorization API Route - Hardened & Secure
 import { Hono } from 'hono';
 import { anonymizeIp, sha256, timingSafeEqual } from '../services/crypto.js';
+import { getStorageBucket } from '../services/storage.js';
 
 const app = new Hono();
 
@@ -41,7 +42,7 @@ async function checkTransferAccess(c, transfer) {
 // GET /api/downloads/:transferId/file/:fileId - Download specific file
 app.get('/:transferId/file/:fileId', async (c) => {
   const db = c.env.DB;
-  const bucket = c.env.BUCKET;
+  const bucket = getStorageBucket(c.env);
   if (!db || !bucket) return c.json({ error: 'Service unavailable' }, 503);
 
   const transferId = c.req.param('transferId');
@@ -175,7 +176,7 @@ app.get('/:transferId/file/:fileId', async (c) => {
 // GET /api/downloads/:transferId/file/:fileId/preview - Sandboxed preview
 app.get('/:transferId/file/:fileId/preview', async (c) => {
   const db = c.env.DB;
-  const bucket = c.env.BUCKET;
+  const bucket = getStorageBucket(c.env);
   if (!db || !bucket) return c.json({ error: 'Service unavailable' }, 503);
 
   const transferId = c.req.param('transferId');

@@ -3,6 +3,7 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { generateId, sanitizeFilename } from '../services/crypto.js';
 import { getPresignedR2Url, hasDirectR2Credentials } from '../services/r2.js';
+import { getStorageBucket } from '../services/storage.js';
 
 const app = new Hono();
 
@@ -21,7 +22,7 @@ const initiateSchema = z.object({
 // POST /api/uploads/initiate - Start a multipart upload session
 app.post('/initiate', async (c) => {
   const db = c.env.DB;
-  const bucket = c.env.BUCKET;
+  const bucket = getStorageBucket(c.env);
   if (!db || !bucket) return c.json({ error: 'Storage or Database unavailable' }, 503);
 
   let body;
@@ -174,7 +175,7 @@ app.get('/:uploadId/part/:partNumber/sign', async (c) => {
 // PUT /api/uploads/:uploadId/part/:partNumber - Worker streaming chunk upload
 app.put('/:uploadId/part/:partNumber', async (c) => {
   const db = c.env.DB;
-  const bucket = c.env.BUCKET;
+  const bucket = getStorageBucket(c.env);
   if (!db || !bucket) return c.json({ error: 'Service unavailable' }, 503);
 
   const uploadId = c.req.param('uploadId');
@@ -209,7 +210,7 @@ app.put('/:uploadId/part/:partNumber', async (c) => {
 // POST /api/uploads/:uploadId/complete - Finalize multipart upload
 app.post('/:uploadId/complete', async (c) => {
   const db = c.env.DB;
-  const bucket = c.env.BUCKET;
+  const bucket = getStorageBucket(c.env);
   if (!db || !bucket) return c.json({ error: 'Service unavailable' }, 503);
 
   const uploadId = c.req.param('uploadId');
@@ -295,7 +296,7 @@ app.post('/:uploadId/complete', async (c) => {
 // POST /api/uploads/:uploadId/abort - Cancel multipart upload
 app.post('/:uploadId/abort', async (c) => {
   const db = c.env.DB;
-  const bucket = c.env.BUCKET;
+  const bucket = getStorageBucket(c.env);
   if (!db || !bucket) return c.json({ error: 'Service unavailable' }, 503);
 
   const uploadId = c.req.param('uploadId');

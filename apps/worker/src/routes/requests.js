@@ -10,6 +10,7 @@ import {
   verifyPassword,
   timingSafeEqual
 } from '../services/crypto.js';
+import { getStorageBucket } from '../services/storage.js';
 
 const app = new Hono();
 
@@ -255,7 +256,7 @@ app.post('/:id/close', async (c) => {
 // DELETE /api/requests/:id - Delete request and all files
 app.delete('/:id', async (c) => {
   const db = c.env.DB;
-  const bucket = c.env.BUCKET;
+  const bucket = getStorageBucket(c.env);
   if (!db) return c.json({ error: 'Database unavailable' }, 503);
 
   const id = c.req.param('id');
