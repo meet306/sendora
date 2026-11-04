@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useSearchParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, useSearchParams, Link } from 'react-router-dom';
 import confetti from 'canvas-confetti';
 import { QRCodeCard } from '../components/QRCodeCard';
 import { api } from '../lib/api';
@@ -12,13 +12,14 @@ import {
   AlertTriangle,
   ArrowLeft,
   ShieldAlert,
-  Loader2
+  Loader2,
+  Lock,
+  Unlock
 } from 'lucide-react';
 
 export function TransferSuccessPage() {
   const { id } = useParams();
   const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
   const senderToken = searchParams.get('key');
 
   const [transfer, setTransfer] = useState(null);
@@ -34,15 +35,13 @@ export function TransferSuccessPage() {
   const [countdown, setCountdown] = useState({ label: '', isExpired: false });
 
   useEffect(() => {
-    // Subtle celebratory confetti
     confetti({
-      particleCount: 40,
-      spread: 60,
+      particleCount: 35,
+      spread: 50,
       origin: { y: 0.6 },
-      colors: ['#3B82F6', '#10B981', '#F59E0B']
+      colors: ['#E54D2E', '#10B981', '#191917']
     });
 
-    // Fetch transfer details with sender token
     api.getTransfer(id, { senderToken })
       .then((data) => {
         setTransfer(data);
@@ -54,14 +53,11 @@ export function TransferSuccessPage() {
       });
   }, [id, senderToken]);
 
-  // Update countdown every second
   useEffect(() => {
     if (!transfer?.expires_at) return;
-
     const interval = setInterval(() => {
       setCountdown(getCountdown(transfer.expires_at));
     }, 1000);
-
     setCountdown(getCountdown(transfer.expires_at));
     return () => clearInterval(interval);
   }, [transfer?.expires_at]);
@@ -89,7 +85,7 @@ export function TransferSuccessPage() {
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center space-y-3">
         <Loader2 className="w-8 h-8 animate-spin text-accent" />
-        <p className="text-xs font-mono text-sendora-500">Loading transfer details...</p>
+        <p className="text-xs font-mono text-paper-500">Preparing transfer receipt...</p>
       </div>
     );
   }
@@ -98,10 +94,10 @@ export function TransferSuccessPage() {
     return (
       <div className="max-w-md mx-auto px-4 py-20 text-center space-y-4">
         <AlertTriangle className="w-12 h-12 text-amber-500 mx-auto" />
-        <h2 className="text-lg font-bold text-sendora-900 dark:text-white">
+        <h2 className="text-lg font-bold text-paper-900 dark:text-obsidian-100">
           Transfer Not Accessible
         </h2>
-        <p className="text-xs text-sendora-500 leading-relaxed">
+        <p className="text-xs text-paper-500 leading-relaxed">
           {error || 'This transfer may have been deleted or expired.'}
         </p>
         <Link
@@ -118,25 +114,25 @@ export function TransferSuccessPage() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-16 space-y-8 animate-fade-in">
-      {/* Banner */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-5 rounded-3xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800">
+      {/* Top Banner */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-5 rounded-3xl bg-white dark:bg-obsidian-900 border border-paper-200 dark:border-obsidian-700 shadow-card dark:shadow-card-dark">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-emerald-500 text-white flex items-center justify-center flex-shrink-0 shadow-sm">
+          <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center flex-shrink-0">
             <CheckCircle2 className="w-6 h-6" />
           </div>
           <div>
-            <h1 className="text-base font-bold text-emerald-900 dark:text-emerald-100">
-              Transfer Ready & Encrypted
+            <h1 className="text-base font-bold text-paper-900 dark:text-obsidian-100">
+              Transfer Generated & Encrypted
             </h1>
-            <p className="text-xs text-emerald-700 dark:text-emerald-400">
-              Your files have been safely staged to private storage.
+            <p className="text-xs text-paper-500">
+              Your files have been safely staged to private cloud storage.
             </p>
           </div>
         </div>
 
         <Link
           to="/send"
-          className="text-xs font-medium text-emerald-800 dark:text-emerald-300 hover:underline"
+          className="text-xs font-mono font-semibold text-accent hover:underline"
         >
           Send Another Transfer →
         </Link>
@@ -160,45 +156,62 @@ export function TransferSuccessPage() {
           />
         </div>
 
-        {/* Right Column: Metadata, Countdown, and Early Deletion */}
+        {/* Right Column: Metadata & Early Deletion */}
         <div className="md:col-span-6 space-y-6">
           {/* Metadata Card */}
-          <div className="bg-white dark:bg-sendora-900 rounded-3xl border border-sendora-200 dark:border-sendora-800 p-6 space-y-5 shadow-sm">
-            <h3 className="text-sm font-bold text-sendora-900 dark:text-white uppercase tracking-wider font-mono">
+          <div className="bg-white dark:bg-obsidian-900 rounded-3xl border border-paper-200 dark:border-obsidian-700 p-6 space-y-5 shadow-card dark:shadow-card-dark">
+            <h3 className="text-xs font-bold text-paper-900 dark:text-obsidian-100 uppercase tracking-wider font-mono">
               Transfer Specifications
             </h3>
 
-            <div className="space-y-3 divide-y divide-sendora-100 dark:divide-sendora-800 text-xs">
+            <div className="space-y-3 divide-y divide-paper-100 dark:divide-obsidian-800 text-xs">
               <div className="flex items-center justify-between pt-2">
-                <span className="text-sendora-500">Transfer Name</span>
-                <span className="font-semibold text-sendora-900 dark:text-white truncate max-w-[200px]">
+                <span className="text-paper-500">Transfer Name</span>
+                <span className="font-semibold text-paper-900 dark:text-obsidian-100 truncate max-w-[200px]">
                   {transfer.title || 'Untitled Transfer'}
                 </span>
               </div>
 
               <div className="flex items-center justify-between pt-3">
-                <span className="text-sendora-500">Payload Size</span>
-                <span className="font-mono font-medium text-sendora-900 dark:text-white">
+                <span className="text-paper-500">Security Mode</span>
+                <span className="font-mono font-medium flex items-center gap-1.5">
+                  {transfer.has_password ? (
+                    <>
+                      <Lock className="w-3.5 h-3.5 text-accent" />
+                      <span className="text-accent font-bold">Password Protected</span>
+                    </>
+                  ) : (
+                    <>
+                      <Unlock className="w-3.5 h-3.5 text-paper-400" />
+                      <span className="text-paper-600 dark:text-obsidian-400">Public Link</span>
+                    </>
+                  )}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between pt-3">
+                <span className="text-paper-500">Payload Size</span>
+                <span className="font-mono font-medium text-paper-900 dark:text-obsidian-100 tabular-nums">
                   {formatBytes(transfer.total_size)} ({transfer.file_count} {transfer.file_count === 1 ? 'file' : 'files'})
                 </span>
               </div>
 
               <div className="flex items-center justify-between pt-3">
-                <span className="text-sendora-500 flex items-center gap-1.5">
+                <span className="text-paper-500 flex items-center gap-1.5">
                   <Clock className="w-3.5 h-3.5 text-accent" />
                   Auto-Expiry Countdown
                 </span>
-                <span className="font-mono font-semibold text-accent">
+                <span className="font-mono font-bold text-accent tabular-nums">
                   {countdown.label}
                 </span>
               </div>
 
               <div className="flex items-center justify-between pt-3">
-                <span className="text-sendora-500 flex items-center gap-1.5">
+                <span className="text-paper-500 flex items-center gap-1.5">
                   <Download className="w-3.5 h-3.5 text-accent" />
                   Download Limit
                 </span>
-                <span className="font-mono text-sendora-900 dark:text-white">
+                <span className="font-mono text-paper-900 dark:text-obsidian-100">
                   {transfer.max_downloads ? `${transfer.download_count} / ${transfer.max_downloads} downloads` : 'Unlimited'}
                 </span>
               </div>
@@ -207,7 +220,7 @@ export function TransferSuccessPage() {
 
           {/* Sender Early Deletion Management Card */}
           {senderToken && transfer.status === 'active' && (
-            <div className="bg-white dark:bg-sendora-900 rounded-3xl border border-sendora-200 dark:border-sendora-800 p-6 space-y-4 shadow-sm">
+            <div className="bg-white dark:bg-obsidian-900 rounded-3xl border border-paper-200 dark:border-obsidian-700 p-6 space-y-4 shadow-card dark:shadow-card-dark">
               <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
                 <Trash2 className="w-4 h-4" />
                 <h4 className="text-xs font-bold uppercase tracking-wider font-mono">
@@ -215,8 +228,8 @@ export function TransferSuccessPage() {
                 </h4>
               </div>
 
-              <p className="text-xs text-sendora-500 leading-relaxed">
-                As the sender, you have the exclusive management key. You can delete this transfer immediately, invalidating all links and purging the files from storage.
+              <p className="text-xs text-paper-500 leading-relaxed">
+                As the sender, you hold the unique management key. You can delete this transfer immediately, invalidating all links and purging the files from storage.
               </p>
 
               {!confirmDelete ? (
@@ -230,7 +243,7 @@ export function TransferSuccessPage() {
               ) : (
                 <div className="space-y-2 p-3.5 rounded-2xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/60 animate-shake">
                   <p className="text-xs font-semibold text-red-700 dark:text-red-300">
-                    Are you sure? This cannot be undone.
+                    Are you sure? This action cannot be undone.
                   </p>
                   <div className="grid grid-cols-2 gap-2 pt-1">
                     <button
@@ -244,7 +257,7 @@ export function TransferSuccessPage() {
                     <button
                       type="button"
                       onClick={() => setConfirmDelete(false)}
-                      className="py-2 px-3 rounded-xl border border-sendora-300 dark:border-sendora-700 text-xs font-medium text-sendora-700 dark:text-sendora-300 hover:bg-white dark:hover:bg-sendora-800"
+                      className="py-2 px-3 rounded-xl border border-paper-300 dark:border-obsidian-700 text-xs font-medium text-paper-700 dark:text-obsidian-300 hover:bg-white dark:hover:bg-obsidian-800"
                     >
                       Cancel
                     </button>

@@ -10,14 +10,13 @@ import {
   Lock,
   Clock,
   Eye,
-  FileText,
+  EyeOff,
   AlertTriangle,
-  CheckCircle,
   Copy,
   Check,
-  ShieldAlert,
   Loader2,
-  FolderArchive
+  FolderArchive,
+  ShieldCheck
 } from 'lucide-react';
 
 export function TransferDetailsPage() {
@@ -28,8 +27,9 @@ export function TransferDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Password unlock dialog state
+  // Password unlock state
   const [passwordInput, setPasswordInput] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [unlockToken, setUnlockToken] = useState(() => {
     return sessionStorage.getItem(`sendora_unlock_${id}`) || '';
   });
@@ -55,7 +55,6 @@ export function TransferDetailsPage() {
         setTransfer(data);
         setLoading(false);
 
-        // Record in history if unlocked
         if (!data.requires_password) {
           addReceivedTransfer({
             id: data.id,
@@ -68,19 +67,16 @@ export function TransferDetailsPage() {
         }
       })
       .catch((err) => {
-        setError(err.message || 'Transfer unavailable');
+        setError(err.message || 'Transfer unavailable or expired');
         setLoading(false);
       });
   }, [id, unlockToken]);
 
-  // Real-time expiry ticker
   useEffect(() => {
     if (!transfer?.expires_at) return;
-
     const interval = setInterval(() => {
       setCountdown(getCountdown(transfer.expires_at));
     }, 1000);
-
     setCountdown(getCountdown(transfer.expires_at));
     return () => clearInterval(interval);
   }, [transfer?.expires_at]);
@@ -96,7 +92,7 @@ export function TransferDetailsPage() {
       const res = await api.unlockTransfer(id, passwordInput.trim());
       setUnlockToken(res.unlock_token);
       sessionStorage.setItem(`sendora_unlock_${id}`, res.unlock_token);
-      // Re-fetch transfer
+
       const full = await api.getTransfer(id, { unlockToken: res.unlock_token });
       setTransfer(full);
       addReceivedTransfer({
@@ -108,7 +104,7 @@ export function TransferDetailsPage() {
         total_size: full.total_size
       });
     } catch (err) {
-      setUnlockError(err.message || 'Incorrect password');
+      setUnlockError(err.message || 'Incorrect password. Please verify and try again.');
     } finally {
       setUnlocking(false);
     }
@@ -118,7 +114,6 @@ export function TransferDetailsPage() {
     if (!transfer?.files || transfer.files.length === 0) return;
     setDownloadingAll(true);
 
-    // Sequential trigger for individual browser downloads
     for (const file of transfer.files) {
       const tokenParam = unlockToken ? `?unlock_token=${encodeURIComponent(unlockToken)}` : '';
       const downloadUrl = `/api/downloads/${transfer.id}/file/${file.id}${tokenParam}`;
@@ -128,7 +123,7 @@ export function TransferDetailsPage() {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      await new Promise(r => setTimeout(r, 600)); // Delay between downloads to prevent browser blocking
+      await new Promise(r => setTimeout(r, 600));
     }
 
     setDownloadingAll(false);
@@ -149,7 +144,7 @@ export function TransferDetailsPage() {
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center space-y-3">
         <Loader2 className="w-8 h-8 animate-spin text-accent" />
-        <p className="text-xs font-mono text-sendora-500">Decrypting transfer status...</p>
+        <p className="text-xs font-mono text-paper-500">Checking transfer authorization...</p>
       </div>
     );
   }
@@ -157,13 +152,13 @@ export function TransferDetailsPage() {
   if (error || !transfer) {
     return (
       <div className="max-w-md mx-auto px-4 py-20 text-center space-y-4">
-        <div className="w-14 h-14 rounded-2xl bg-amber-50 dark:bg-amber-950/40 text-amber-500 flex items-center justify-center mx-auto">
-          <AlertTriangle className="w-7 h-7" />
+        <div className="w-12 h-12 rounded-2xl bg-amber-50 dark:bg-amber-950/40 text-amber-500 flex items-center justify-center mx-auto">
+          <AlertTriangle className="w-6 h-6" />
         </div>
-        <h2 className="text-xl font-bold text-sendora-900 dark:text-white">
+        <h2 className="text-xl font-bold text-paper-900 dark:text-obsidian-100">
           Transfer Expired or Inaccessible
         </h2>
-        <p className="text-xs text-sendora-500 leading-relaxed">
+        <p className="text-xs text-paper-500 leading-relaxed">
           {error || 'This transfer may have reached its download limit, expired, or been removed by the sender.'}
         </p>
         <Link
@@ -181,35 +176,44 @@ export function TransferDetailsPage() {
     return (
       <div className="max-w-md mx-auto px-4 sm:px-6 py-16 md:py-24 space-y-6 animate-fade-in">
         <div className="text-center space-y-2">
-          <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center mx-auto mb-3">
-            <Lock className="w-6 h-6" />
+          <div className="w-12 h-12 rounded-2xl bg-paper-100 dark:bg-obsidian-800 text-accent flex items-center justify-center mx-auto mb-3 border border-paper-200 dark:border-obsidian-700">
+            <Lock className="w-5 h-5" />
           </div>
-          <h1 className="text-2xl font-bold text-sendora-900 dark:text-white">
+          <h1 className="text-2xl font-bold text-paper-900 dark:text-obsidian-100">
             Password Protected
           </h1>
-          <p className="text-xs text-sendora-500 max-w-xs mx-auto leading-relaxed">
-            The sender protected this transfer. Enter the password to unlock and preview files.
+          <p className="text-xs text-paper-500 max-w-xs mx-auto leading-relaxed">
+            The sender protected this transfer. Enter the password to unlock and access files.
           </p>
         </div>
 
-        <div className="bg-white dark:bg-sendora-900 rounded-3xl border border-sendora-200 dark:border-sendora-800 p-6 md:p-8 shadow-premium space-y-5">
+        <div className="bg-white dark:bg-obsidian-900 rounded-3xl border border-paper-200 dark:border-obsidian-700 p-6 md:p-8 shadow-card dark:shadow-card-dark space-y-5">
           <form onSubmit={handleUnlockPassword} className="space-y-4">
             <div>
-              <label className="block text-xs font-mono uppercase tracking-wider text-sendora-700 dark:text-sendora-300 mb-1.5">
-                Transfer Password
+              <label className="block text-xs font-mono uppercase tracking-wider text-paper-700 dark:text-obsidian-300 mb-1.5 font-bold">
+                Enter Password
               </label>
-              <input
-                type="password"
-                required
-                autoFocus
-                placeholder="Enter password..."
-                value={passwordInput}
-                onChange={(e) => {
-                  setPasswordInput(e.target.value);
-                  setUnlockError(null);
-                }}
-                className="w-full px-4 py-2.5 text-xs rounded-xl bg-sendora-50 dark:bg-sendora-800 border border-sendora-200 dark:border-sendora-700 focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent text-sendora-900 dark:text-white"
-              />
+              <div className="relative flex items-center">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  autoFocus
+                  placeholder="Password..."
+                  value={passwordInput}
+                  onChange={(e) => {
+                    setPasswordInput(e.target.value);
+                    setUnlockError(null);
+                  }}
+                  className="w-full pr-10 pl-4 py-2.5 text-xs font-mono rounded-xl bg-paper-50 dark:bg-obsidian-800 border border-paper-200 dark:border-obsidian-700 focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent text-paper-900 dark:text-obsidian-100"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 text-paper-400 hover:text-paper-700 dark:hover:text-obsidian-200"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4 text-accent" />}
+                </button>
+              </div>
             </div>
 
             {unlockError && (
@@ -222,13 +226,13 @@ export function TransferDetailsPage() {
             <button
               type="submit"
               disabled={unlocking || !passwordInput.trim()}
-              className="w-full py-3 px-4 rounded-xl bg-accent text-white font-semibold text-xs flex items-center justify-center gap-2 hover:bg-accent-hover transition-colors shadow-sm disabled:opacity-50"
+              className="w-full py-3 px-4 rounded-xl bg-accent text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 hover:bg-accent-hover transition-colors shadow-sm disabled:opacity-50 cursor-pointer"
             >
               {unlocking ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Unlock Transfer'}
             </button>
           </form>
 
-          <div className="pt-3 border-t border-sendora-100 dark:border-sendora-800 flex items-center justify-between text-[11px] font-mono text-sendora-400">
+          <div className="pt-3 border-t border-paper-100 dark:border-obsidian-800 flex items-center justify-between text-[11px] font-mono text-paper-400">
             <span>SND-{transfer.short_code}</span>
             <span>{countdown.label}</span>
           </div>
@@ -240,7 +244,6 @@ export function TransferDetailsPage() {
   // Authorized Transfer View
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-16 space-y-8 animate-fade-in">
-      {/* File Preview Modal */}
       <FilePreviewModal
         isOpen={Boolean(selectedPreviewFile)}
         file={selectedPreviewFile}
@@ -250,45 +253,43 @@ export function TransferDetailsPage() {
       />
 
       {/* Transfer Header Card */}
-      <div className="bg-white dark:bg-sendora-900 rounded-3xl border border-sendora-200 dark:border-sendora-800 p-6 md:p-8 shadow-sm space-y-4">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-sendora-100 dark:border-sendora-800 pb-4">
+      <div className="bg-white dark:bg-obsidian-900 rounded-3xl border border-paper-200 dark:border-obsidian-700 p-6 md:p-8 shadow-card dark:shadow-card-dark space-y-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-paper-100 dark:border-obsidian-800 pb-4">
           <div>
             <div className="flex items-center gap-2 mb-1">
               <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold uppercase tracking-wider bg-accent/10 text-accent">
                 SND-{transfer.short_code}
               </span>
               {transfer.has_password && (
-                <span className="px-2 py-0.5 rounded-md text-[10px] font-mono bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
+                <span className="px-2 py-0.5 rounded-md text-[10px] font-mono bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
                   Password Verified
                 </span>
               )}
             </div>
-            <h1 className="text-xl md:text-2xl font-bold text-sendora-900 dark:text-white">
+            <h1 className="text-xl md:text-2xl font-bold text-paper-900 dark:text-obsidian-50">
               {transfer.title || 'Shared Transfer'}
             </h1>
           </div>
 
-          <div className="flex items-center gap-3 text-xs font-mono">
-            <div className="px-3 py-1.5 rounded-xl bg-sendora-50 dark:bg-sendora-800 border border-sendora-200 dark:border-sendora-700 flex items-center gap-1.5 text-sendora-700 dark:text-sendora-300">
+          <div className="flex items-center gap-2 text-xs font-mono">
+            <div className="px-3 py-1.5 rounded-xl bg-paper-100 dark:bg-obsidian-800 border border-paper-200 dark:border-obsidian-700 flex items-center gap-1.5 text-paper-700 dark:text-obsidian-300">
               <Clock className="w-3.5 h-3.5 text-accent" />
               <span>{countdown.label}</span>
             </div>
           </div>
         </div>
 
-        {/* Sender message if any */}
         {transfer.message && (
-          <div className="p-4 rounded-2xl bg-sendora-50 dark:bg-sendora-800/40 border border-sendora-100 dark:border-sendora-800 text-xs text-sendora-700 dark:text-sendora-300 leading-relaxed">
-            <span className="font-semibold block mb-1 text-sendora-900 dark:text-white font-mono uppercase text-[10px]">
+          <div className="p-4 rounded-xl bg-paper-50 dark:bg-obsidian-800/40 border border-paper-100 dark:border-obsidian-800 text-xs text-paper-700 dark:text-obsidian-300 leading-relaxed">
+            <span className="font-bold block mb-1 text-paper-900 dark:text-obsidian-100 font-mono uppercase text-[10px]">
               Note from Sender:
             </span>
             {transfer.message}
           </div>
         )}
 
-        {/* Download limit indicator */}
         {transfer.max_downloads && (
-          <div className="text-[11px] font-mono text-sendora-500">
+          <div className="text-[11px] font-mono text-paper-500">
             Download Availability: {transfer.download_count} of {transfer.max_downloads} maximum downloads claimed.
           </div>
         )}
@@ -296,21 +297,21 @@ export function TransferDetailsPage() {
 
       {/* Case 1: Clipboard Text View */}
       {transfer.transfer_type === 'clipboard' && transfer.clipboard_text && (
-        <div className="bg-white dark:bg-sendora-900 rounded-3xl border border-sendora-200 dark:border-sendora-800 p-6 md:p-8 shadow-sm space-y-4">
+        <div className="bg-white dark:bg-obsidian-900 rounded-3xl border border-paper-200 dark:border-obsidian-700 p-6 md:p-8 shadow-card dark:shadow-card-dark space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-xs font-mono uppercase tracking-wider text-sendora-700 dark:text-sendora-300 font-semibold">
+            <h3 className="text-xs font-mono uppercase tracking-wider text-paper-700 dark:text-obsidian-300 font-bold">
               Shared Text Snippet
             </h3>
             <button
               onClick={copyClipboardSnippet}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-sendora-200 dark:border-sendora-700 text-xs font-medium text-sendora-700 dark:text-sendora-300 hover:bg-sendora-100 dark:hover:bg-sendora-800 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-paper-200 dark:border-obsidian-700 text-xs font-semibold text-paper-700 dark:text-obsidian-300 hover:bg-paper-100 dark:hover:bg-obsidian-800 transition-colors"
             >
               {copiedSnippet ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
               {copiedSnippet ? 'Copied' : 'Copy Snippet'}
             </button>
           </div>
 
-          <pre className="p-4 rounded-2xl bg-sendora-50 dark:bg-sendora-950 font-mono text-xs text-sendora-900 dark:text-sendora-100 border border-sendora-200/60 dark:border-sendora-800 overflow-x-auto whitespace-pre-wrap select-text">
+          <pre className="p-4 rounded-2xl bg-paper-50 dark:bg-obsidian-950 font-mono text-xs text-paper-900 dark:text-obsidian-100 border border-paper-200/60 dark:border-obsidian-800 overflow-x-auto whitespace-pre-wrap select-text">
             {transfer.clipboard_text}
           </pre>
         </div>
@@ -318,13 +319,13 @@ export function TransferDetailsPage() {
 
       {/* Case 2: Files Listing View */}
       {transfer.transfer_type !== 'clipboard' && (
-        <div className="bg-white dark:bg-sendora-900 rounded-3xl border border-sendora-200 dark:border-sendora-800 p-6 md:p-8 shadow-sm space-y-6">
+        <div className="bg-white dark:bg-obsidian-900 rounded-3xl border border-paper-200 dark:border-obsidian-700 p-6 md:p-8 shadow-card dark:shadow-card-dark space-y-6">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
-              <h3 className="text-sm font-bold text-sendora-900 dark:text-white uppercase tracking-wider font-mono">
+              <h3 className="text-sm font-bold text-paper-900 dark:text-obsidian-50 uppercase tracking-wider font-mono">
                 Files In Transfer ({transfer.files?.length || 0})
               </h3>
-              <p className="text-xs text-sendora-500">
+              <p className="text-xs text-paper-500 font-mono">
                 Total payload: {formatBytes(transfer.total_size)}
               </p>
             </div>
@@ -334,7 +335,7 @@ export function TransferDetailsPage() {
                 type="button"
                 disabled={downloadingAll}
                 onClick={handleDownloadAll}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-accent text-white text-xs font-semibold hover:bg-accent-hover transition-colors shadow-sm disabled:opacity-50 cursor-pointer"
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-accent text-white text-xs font-bold uppercase tracking-wider hover:bg-accent-hover transition-colors shadow-sm disabled:opacity-50 cursor-pointer"
               >
                 {downloadingAll ? (
                   <>
@@ -349,8 +350,8 @@ export function TransferDetailsPage() {
             )}
           </div>
 
-          {/* Files Table */}
-          <div className="space-y-3">
+          {/* Files List */}
+          <div className="space-y-2.5">
             {transfer.files?.map((file) => {
               const tokenParam = unlockToken ? `?unlock_token=${encodeURIComponent(unlockToken)}` : '';
               const downloadUrl = `/api/downloads/${transfer.id}/file/${file.id}${tokenParam}`;
@@ -358,21 +359,21 @@ export function TransferDetailsPage() {
               return (
                 <div
                   key={file.id}
-                  className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5 rounded-2xl bg-sendora-50 dark:bg-sendora-800/40 border border-sendora-200/60 dark:border-sendora-800 hover:border-sendora-300 dark:hover:border-sendora-700 transition-colors"
+                  className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5 rounded-2xl bg-paper-50 dark:bg-obsidian-800/40 border border-paper-200/60 dark:border-obsidian-700/60 hover:border-paper-300 dark:hover:border-obsidian-600 transition-colors"
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-10 h-10 rounded-xl bg-white dark:bg-sendora-800 flex items-center justify-center border border-sendora-200/60 dark:border-sendora-700 flex-shrink-0">
+                    <div className="w-9 h-9 rounded-xl bg-white dark:bg-obsidian-800 flex items-center justify-center border border-paper-200 dark:border-obsidian-700 flex-shrink-0">
                       {getFileTypeIcon(file.safe_filename, file.mime_type)}
                     </div>
                     <div className="min-w-0">
-                      <p className="text-xs font-semibold text-sendora-900 dark:text-white truncate">
+                      <p className="text-xs font-bold text-paper-900 dark:text-obsidian-100 truncate">
                         {file.original_filename || file.safe_filename}
                       </p>
-                      <div className="flex items-center gap-2 text-[11px] font-mono text-sendora-500">
+                      <div className="flex items-center gap-2 text-[11px] font-mono text-paper-400 dark:text-obsidian-500 tabular-nums">
                         <span>{formatBytes(file.file_size)}</span>
                         {file.sha256_hash && (
                           <span
-                            className="text-[10px] text-sendora-400 hover:text-accent cursor-pointer truncate max-w-[140px]"
+                            className="text-[10px] hover:text-accent cursor-pointer truncate max-w-[130px]"
                             title={`SHA-256: ${file.sha256_hash}`}
                           >
                             • SHA: {file.sha256_hash.slice(0, 8)}...
@@ -386,7 +387,7 @@ export function TransferDetailsPage() {
                     <button
                       type="button"
                       onClick={() => setSelectedPreviewFile(file)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-sendora-200 dark:border-sendora-700 text-xs font-medium text-sendora-700 dark:text-sendora-300 hover:bg-sendora-100 dark:hover:bg-sendora-800 transition-colors"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-paper-200 dark:border-obsidian-700 text-xs font-semibold text-paper-700 dark:text-obsidian-300 hover:bg-paper-100 dark:hover:bg-obsidian-800 transition-colors"
                     >
                       <Eye className="w-3.5 h-3.5" />
                       Preview
@@ -395,7 +396,7 @@ export function TransferDetailsPage() {
                     <a
                       href={downloadUrl}
                       download={file.safe_filename}
-                      className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-accent text-white text-xs font-semibold hover:bg-accent-hover transition-colors shadow-sm"
+                      className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-accent text-white text-xs font-bold uppercase tracking-wider hover:bg-accent-hover transition-colors shadow-sm"
                     >
                       <Download className="w-3.5 h-3.5" />
                       Download

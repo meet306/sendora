@@ -239,3 +239,4 @@ app.post('/logout', async (c) => {
 });
 
 export default app;
+

@@ -190,3 +190,4 @@ Once deployed, verify:
 - [ ] Test password protection: create a protected transfer, verify files are hidden until the password is entered.
 - [ ] Test early deletion: visit the transfer success page with your management token, click "Delete This Transfer Early", and confirm the link is immediately revoked.
 - [ ] Log in to `/admin/login` using your provisioned credentials and verify telemetry charts.
+

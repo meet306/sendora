@@ -1,6 +1,6 @@
-// Download and File Preview Authorization API Route
+// Download and File Preview Authorization API Route - Hardened & Secure
 import { Hono } from 'hono';
-import { anonymizeIp, sha256 } from '../services/crypto.js';
+import { anonymizeIp, sha256, timingSafeEqual } from '../services/crypto.js';
 
 const app = new Hono();
 
@@ -18,7 +18,7 @@ const ALLOWED_PREVIEW_MIMES = new Set([
 ]);
 
 /**
- * Validate unlock token
+ * Validate unlock token with constant-time equality
  */
 async function checkTransferAccess(c, transfer) {
   if (!transfer.password_hash) return true;
@@ -26,13 +26,13 @@ async function checkTransferAccess(c, transfer) {
   const unlockToken = c.req.header('X-Unlock-Token') || c.req.query('unlock_token');
   if (unlockToken) {
     const expectedToken = await sha256(`unlock:${transfer.id}:${transfer.password_salt}`);
-    if (unlockToken === expectedToken) return true;
+    if (timingSafeEqual(unlockToken, expectedToken)) return true;
   }
 
   const senderToken = c.req.header('X-Sender-Token');
   if (senderToken) {
     const hash = await sha256(senderToken);
-    if (hash === transfer.sender_token_hash) return true;
+    if (timingSafeEqual(hash, transfer.sender_token_hash)) return true;
   }
 
   return false;
@@ -48,53 +48,90 @@ app.get('/:transferId/file/:fileId', async (c) => {
   const fileId = c.req.param('fileId');
   const now = Math.floor(Date.now() / 1000);
 
-  const transfer = await db.prepare(
-    `SELECT * FROM transfers WHERE id = ?`
-  ).bind(transferId).first();
+  // 1. First check if transferId belongs to standard transfers
+  let transfer = await db.prepare(
+    `SELECT * FROM transfers WHERE (id = ? OR short_code = ? COLLATE NOCASE)`
+  ).bind(transferId, transferId).first();
 
-  if (!transfer) {
-    return c.json({ error: 'Transfer not found' }, 404);
+  let isSubmissionFile = false;
+  let file = null;
+
+  if (transfer) {
+    if (transfer.status !== 'active' || now >= transfer.expires_at) {
+      return c.json({ error: 'Transfer has expired or is no longer available' }, 410);
+    }
+
+    const authorized = await checkTransferAccess(c, transfer);
+    if (!authorized) {
+      return c.json({ error: 'Password required or invalid token' }, 401);
+    }
+
+    file = await db.prepare(
+      `SELECT * FROM transfer_files WHERE id = ? AND transfer_id = ?`
+    ).bind(fileId, transfer.id).first();
+
+    if (!file) {
+      return c.json({ error: 'File not found' }, 404);
+    }
+
+    // Atomic download limit enforcement with concurrency protection:
+    const atomicUpdate = await db.prepare(
+      `UPDATE transfers 
+       SET download_count = download_count + 1, updated_at = ?
+       WHERE id = ? 
+         AND status = 'active' 
+         AND expires_at > ? 
+         AND (max_downloads IS NULL OR download_count < max_downloads)`
+    ).bind(now, transfer.id, now).run();
+
+    if (atomicUpdate.meta.changes === 0) {
+      return c.json({ error: 'Download limit reached for this transfer' }, 410);
+    }
+
+    // Increment file download counter
+    await db.prepare(
+      `UPDATE transfer_files SET download_count = download_count + 1 WHERE id = ?`
+    ).bind(fileId).run();
+
+  } else {
+    // 2. Check if transferId belongs to a file_request_submission
+    const submission = await db.prepare(
+      `SELECT frs.id, frs.request_id, fr.requester_token_hash, fr.expires_at, fr.status
+       FROM file_request_submissions frs
+       JOIN file_requests fr ON frs.request_id = fr.id
+       WHERE frs.id = ?`
+    ).bind(transferId).first();
+
+    if (!submission) {
+      return c.json({ error: 'Transfer or submission not found' }, 404);
+    }
+
+    // Submission files require requester management token for access
+    const requesterToken = c.req.header('X-Requester-Token') || c.req.query('requester_token');
+    if (requesterToken) {
+      const tokenHash = await sha256(requesterToken);
+      if (!timingSafeEqual(tokenHash, submission.requester_token_hash)) {
+        return c.json({ error: 'Unauthorized submission download' }, 403);
+      }
+    }
+
+    file = await db.prepare(
+      `SELECT * FROM transfer_files WHERE id = ? AND submission_id = ?`
+    ).bind(fileId, submission.id).first();
+
+    if (!file) {
+      return c.json({ error: 'File not found in submission' }, 404);
+    }
+
+    isSubmissionFile = true;
   }
-
-  if (transfer.status !== 'active' || now >= transfer.expires_at) {
-    return c.json({ error: 'Transfer has expired or is no longer available' }, 410);
-  }
-
-  const authorized = await checkTransferAccess(c, transfer);
-  if (!authorized) {
-    return c.json({ error: 'Password required or invalid token' }, 401);
-  }
-
-  const file = await db.prepare(
-    `SELECT * FROM transfer_files WHERE id = ? AND transfer_id = ?`
-  ).bind(fileId, transferId).first();
-
-  if (!file) {
-    return c.json({ error: 'File not found' }, 404);
-  }
-
-  // Atomic download limit enforcement:
-  // We execute a conditional update. If max_downloads is reached, rows_written is 0.
-  const atomicUpdate = await db.prepare(
-    `UPDATE transfers 
-     SET download_count = download_count + 1, updated_at = ?
-     WHERE id = ? 
-       AND status = 'active' 
-       AND expires_at > ? 
-       AND (max_downloads IS NULL OR download_count < max_downloads)`
-  ).bind(now, transferId, now).run();
-
-  if (atomicUpdate.meta.changes === 0) {
-    return c.json({ error: 'Download limit reached for this transfer' }, 410);
-  }
-
-  // Increment file-specific download counter
-  await db.prepare(
-    `UPDATE transfer_files SET download_count = download_count + 1 WHERE id = ?`
-  ).bind(fileId).run();
 
   // Record download audit event with anonymized IP
-  const rawIp = c.req.header('CF-Connecting-IP') || c.req.header('x-forwarded-for') || '127.0.0.1';
+  let rawIp = c.req.header('CF-Connecting-IP');
+  if (!rawIp) {
+    const xff = c.req.header('x-forwarded-for');
+    rawIp = xff ? xff.split(',')[0].trim() : '127.0.0.1';
+  }
   const ipHash = await anonymizeIp(rawIp);
   const userAgent = (c.req.header('User-Agent') || 'Unknown').slice(0, 100);
 
@@ -110,18 +147,24 @@ app.get('/:transferId/file/:fileId', async (c) => {
     now
   ).run();
 
-  // Fetch from private R2 bucket
+  // Fetch from private R2 storage
   const object = await bucket.get(file.r2_key);
   if (!object) {
-    return c.json({ error: 'File object not found in storage' }, 404);
+    return c.json({ error: 'File object not found in private storage' }, 404);
   }
 
-  // Return download binary stream with strict security headers
+  // Sanitize filename for HTTP header injection prevention (RFC 6266 / RFC 5987)
+  const safeAsciiFilename = file.safe_filename.replace(/[^\x20-\x7E]/g, '_').replace(/"/g, '');
+  const encodedUtf8Filename = encodeURIComponent(file.safe_filename);
+
   const headers = new Headers();
   object.writeHttpMetadata(headers);
-  headers.set('etag', object.httpEtag);
+  headers.set('etag', object.httpEtag || `"${file.id}"`);
   headers.set('Content-Type', file.mime_type || 'application/octet-stream');
-  headers.set('Content-Disposition', `attachment; filename="${encodeURIComponent(file.safe_filename)}"`);
+  headers.set(
+    'Content-Disposition',
+    `attachment; filename="${safeAsciiFilename}"; filename*=UTF-8''${encodedUtf8Filename}`
+  );
   headers.set('Content-Length', file.file_size.toString());
   headers.set('X-Content-Type-Options', 'nosniff');
   headers.set('Cache-Control', 'private, no-cache, no-store');
@@ -140,8 +183,8 @@ app.get('/:transferId/file/:fileId/preview', async (c) => {
   const now = Math.floor(Date.now() / 1000);
 
   const transfer = await db.prepare(
-    `SELECT * FROM transfers WHERE id = ?`
-  ).bind(transferId).first();
+    `SELECT * FROM transfers WHERE (id = ? OR short_code = ? COLLATE NOCASE)`
+  ).bind(transferId, transferId).first();
 
   if (!transfer || transfer.status !== 'active' || now >= transfer.expires_at) {
     return c.json({ error: 'Transfer not available' }, 410);
@@ -154,13 +197,12 @@ app.get('/:transferId/file/:fileId/preview', async (c) => {
 
   const file = await db.prepare(
     `SELECT * FROM transfer_files WHERE id = ? AND transfer_id = ?`
-  ).bind(fileId, transferId).first();
+  ).bind(fileId, transfer.id).first();
 
   if (!file) {
     return c.json({ error: 'File not found' }, 404);
   }
 
-  // Infer or match mime type
   let previewMime = file.mime_type || 'application/octet-stream';
   const ext = file.safe_filename.split('.').pop().toLowerCase();
   const extToMime = {
@@ -180,7 +222,7 @@ app.get('/:transferId/file/:fileId/preview', async (c) => {
   }
 
   if (!ALLOWED_PREVIEW_MIMES.has(previewMime)) {
-    return c.json({ error: 'Preview not supported for this file type' }, 415);
+    return c.json({ error: 'Preview not supported for this file format' }, 415);
   }
 
   const object = await bucket.get(file.r2_key);
@@ -188,11 +230,12 @@ app.get('/:transferId/file/:fileId/preview', async (c) => {
     return c.json({ error: 'File object not found' }, 404);
   }
 
+  const safeAsciiFilename = file.safe_filename.replace(/[^\x20-\x7E]/g, '_').replace(/"/g, '');
   const headers = new Headers();
   object.writeHttpMetadata(headers);
-  headers.set('etag', object.httpEtag);
+  headers.set('etag', object.httpEtag || `"${file.id}"`);
   headers.set('Content-Type', previewMime);
-  headers.set('Content-Disposition', `inline; filename="${encodeURIComponent(file.safe_filename)}"`);
+  headers.set('Content-Disposition', `inline; filename="${safeAsciiFilename}"`);
   headers.set('X-Content-Type-Options', 'nosniff');
   headers.set('Content-Security-Policy', "default-src 'none'; style-src 'unsafe-inline'; sandbox");
   headers.set('Cache-Control', 'private, max-age=3600');

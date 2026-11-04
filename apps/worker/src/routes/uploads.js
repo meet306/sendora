@@ -1,7 +1,7 @@
-// Multipart Upload Lifecycle API Route
+// Multipart Upload Lifecycle API Route - Hardened
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { generateId, sanitizeFilename, sha256 } from '../services/crypto.js';
+import { generateId, sanitizeFilename } from '../services/crypto.js';
 import { getPresignedR2Url, hasDirectR2Credentials } from '../services/r2.js';
 
 const app = new Hono();
@@ -235,7 +235,6 @@ app.post('/:uploadId/complete', async (c) => {
 
   try {
     const upload = bucket.resumeMultipartUpload(session.r2_key, session.r2_upload_id);
-    // Sort parts by partNumber ascending as required by S3/R2 specification
     const sortedParts = parts.slice().sort((a, b) => a.partNumber - b.partNumber);
     await upload.complete(sortedParts);
   } catch (err) {
@@ -278,7 +277,6 @@ app.post('/:uploadId/complete', async (c) => {
     ).bind(session.file_size, session.submission_id).run();
   }
 
-  // Mark session completed
   await db.prepare(
     `UPDATE upload_sessions SET status = 'completed' WHERE id = ?`
   ).bind(uploadId).run();
@@ -314,9 +312,7 @@ app.post('/:uploadId/abort', async (c) => {
     if (upload && typeof upload.abort === 'function') {
       await upload.abort();
     }
-  } catch (e) {
-    // Already aborted or not existing
-  }
+  } catch (e) {}
 
   await db.prepare(
     `UPDATE upload_sessions SET status = 'aborted' WHERE id = ?`

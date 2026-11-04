@@ -1,4 +1,4 @@
-// File Requests API Route
+// File Requests API Route - Hardened & Secure
 import { Hono } from 'hono';
 import { z } from 'zod';
 import {
@@ -7,7 +7,8 @@ import {
   generateSecretToken,
   sha256,
   hashPassword,
-  verifyPassword
+  verifyPassword,
+  timingSafeEqual
 } from '../services/crypto.js';
 
 const app = new Hono();
@@ -15,7 +16,7 @@ const app = new Hono();
 const createRequestSchema = z.object({
   title: z.string().min(1).max(100),
   description: z.string().max(1000).optional(),
-  password: z.string().min(1).max(128).optional(),
+  password: z.string().max(128).optional(),
   expiration_hours: z.enum(['1', '6', '24', '168']).or(z.number()).default(24),
   max_submissions: z.number().int().min(1).max(100).optional()
 });
@@ -49,7 +50,7 @@ app.post('/', async (c) => {
 
   let passwordHash = null;
   let passwordSalt = null;
-  if (data.password && data.password.trim().length > 0) {
+  if (data.password && typeof data.password === 'string' && data.password.trim().length > 0) {
     const hashed = await hashPassword(data.password.trim());
     passwordHash = hashed.hash;
     passwordSalt = hashed.salt;
@@ -78,6 +79,7 @@ app.post('/', async (c) => {
     id: requestId,
     short_code: shortCode,
     requester_token: requesterToken,
+    has_password: Boolean(passwordHash),
     title: data.title,
     description: data.description || null,
     expires_at: expiresAt,
@@ -86,7 +88,7 @@ app.post('/', async (c) => {
 });
 
 // GET /api/requests/:identifier - Public view for uploaders
-// CRITICAL SECURITY REQUIREMENT: Never exposes past submissions or files!
+// STRICT SECURITY REQUIREMENT: Never exposes past submissions or files!
 app.get('/:identifier', async (c) => {
   const db = c.env.DB;
   if (!db) return c.json({ error: 'Database unavailable' }, 503);
@@ -96,8 +98,8 @@ app.get('/:identifier', async (c) => {
 
   const request = await db.prepare(
     `SELECT id, short_code, title, description, password_hash, max_submissions, submission_count, status, expires_at, created_at
-     FROM file_requests WHERE (id = ? OR short_code = ?)`
-  ).bind(identifier, identifier.toUpperCase()).first();
+     FROM file_requests WHERE (id = ? OR short_code = ? COLLATE NOCASE)`
+  ).bind(identifier, identifier).first();
 
   if (!request) {
     return c.json({ error: 'File request not found' }, 404);
@@ -136,8 +138,8 @@ app.post('/:identifier/submissions', async (c) => {
   const now = Math.floor(Date.now() / 1000);
 
   const request = await db.prepare(
-    `SELECT * FROM file_requests WHERE (id = ? OR short_code = ?)`
-  ).bind(identifier, identifier.toUpperCase()).first();
+    `SELECT * FROM file_requests WHERE (id = ? OR short_code = ? COLLATE NOCASE)`
+  ).bind(identifier, identifier).first();
 
   if (!request || request.status !== 'active' || now >= request.expires_at) {
     return c.json({ error: 'File request is no longer accepting uploads' }, 410);
@@ -146,9 +148,7 @@ app.post('/:identifier/submissions', async (c) => {
   let body = {};
   try {
     body = await c.req.json();
-  } catch (e) {
-    // Body optional
-  }
+  } catch (e) {}
 
   // Password check if required
   if (request.password_hash) {
@@ -185,7 +185,7 @@ app.get('/:id/manage', async (c) => {
   if (!db) return c.json({ error: 'Database unavailable' }, 503);
 
   const id = c.req.param('id');
-  const requesterToken = c.req.header('X-Requester-Token');
+  const requesterToken = c.req.header('X-Requester-Token') || c.req.query('key');
   if (!requesterToken) {
     return c.json({ error: 'Missing requester management token' }, 401);
   }
@@ -199,18 +199,17 @@ app.get('/:id/manage', async (c) => {
     return c.json({ error: 'File request not found' }, 404);
   }
 
-  if (request.requester_token_hash !== tokenHash) {
+  if (!timingSafeEqual(request.requester_token_hash, tokenHash)) {
     return c.json({ error: 'Invalid requester management token' }, 403);
   }
 
-  // Fetch submissions and their files
+  // Fetch submissions and files
   const submissionsQuery = await db.prepare(
     `SELECT * FROM file_request_submissions WHERE request_id = ? ORDER BY created_at DESC`
   ).bind(id).all();
 
   const submissions = submissionsQuery.results || [];
 
-  // Fetch files for each submission
   for (const sub of submissions) {
     const filesQuery = await db.prepare(
       `SELECT id, original_filename, safe_filename, file_size, mime_type, sha256_hash, download_count, created_at
@@ -234,18 +233,18 @@ app.get('/:id/manage', async (c) => {
   });
 });
 
-// POST /api/requests/:id/close - Close request to future submissions
+// POST /api/requests/:id/close - Close request
 app.post('/:id/close', async (c) => {
   const db = c.env.DB;
   if (!db) return c.json({ error: 'Database unavailable' }, 503);
 
   const id = c.req.param('id');
-  const requesterToken = c.req.header('X-Requester-Token');
+  const requesterToken = c.req.header('X-Requester-Token') || c.req.query('key');
   if (!requesterToken) return c.json({ error: 'Missing requester token' }, 401);
 
   const tokenHash = await sha256(requesterToken);
   const request = await db.prepare(`SELECT * FROM file_requests WHERE id = ?`).bind(id).first();
-  if (!request || request.requester_token_hash !== tokenHash) {
+  if (!request || !timingSafeEqual(request.requester_token_hash, tokenHash)) {
     return c.json({ error: 'Unauthorized' }, 403);
   }
 
@@ -260,16 +259,15 @@ app.delete('/:id', async (c) => {
   if (!db) return c.json({ error: 'Database unavailable' }, 503);
 
   const id = c.req.param('id');
-  const requesterToken = c.req.header('X-Requester-Token');
+  const requesterToken = c.req.header('X-Requester-Token') || c.req.query('key');
   if (!requesterToken) return c.json({ error: 'Missing requester token' }, 401);
 
   const tokenHash = await sha256(requesterToken);
   const request = await db.prepare(`SELECT * FROM file_requests WHERE id = ?`).bind(id).first();
-  if (!request || request.requester_token_hash !== tokenHash) {
+  if (!request || !timingSafeEqual(request.requester_token_hash, tokenHash)) {
     return c.json({ error: 'Unauthorized' }, 403);
   }
 
-  // Find all files belonging to all submissions of this request
   const filesQuery = await db.prepare(
     `SELECT tf.id, tf.r2_key FROM transfer_files tf
      JOIN file_request_submissions frs ON tf.submission_id = frs.id
@@ -287,9 +285,7 @@ app.delete('/:id', async (c) => {
     }
   }
 
-  // Delete records
   await db.prepare(`DELETE FROM file_requests WHERE id = ?`).bind(id).run();
-
   return c.json({ success: true, message: 'File request and all submissions permanently deleted' });
 });
 

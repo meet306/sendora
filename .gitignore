@@ -5,3 +5,5 @@ dist/
 .env.local
 .DS_Store
 Thumbs.db
+.local-storage/
+apps/web/.local-storage/

@@ -185,3 +185,4 @@ export function sanitizeFilename(filename) {
 
   return safe;
 }
+

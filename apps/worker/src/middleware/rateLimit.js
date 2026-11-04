@@ -97,3 +97,4 @@ export async function resetRateLimit(c, identifierType, identifier) {
     `DELETE FROM lookup_attempts WHERE identifier_type = ? AND identifier = ? AND ip_hash = ?`
   ).bind(identifierType, identifier, ipHash).run();
 }
+

@@ -1,4 +1,4 @@
-// Transfers API Route
+// Transfers API Route - Hardened & Secure
 import { Hono } from 'hono';
 import { z } from 'zod';
 import {
@@ -8,6 +8,7 @@ import {
   sha256,
   hashPassword,
   verifyPassword,
+  timingSafeEqual,
   anonymizeIp
 } from '../services/crypto.js';
 import { checkRateLimit, resetRateLimit } from '../middleware/rateLimit.js';
@@ -20,13 +21,13 @@ const createTransferSchema = z.object({
   message: z.string().max(1000).optional(),
   transfer_type: z.enum(['standard', 'clipboard']).default('standard'),
   clipboard_text: z.string().max(50000).optional(),
-  password: z.string().min(1).max(128).optional(),
+  password: z.string().max(128).optional(),
   expiration_hours: z.enum(['1', '6', '24', '168']).or(z.number()).default(24),
   max_downloads: z.union([z.literal(1), z.literal(5), z.literal(10), z.null()]).optional()
 });
 
 /**
- * Generate a deterministic unlock token for a specific transfer
+ * Generate deterministic unlock token for authorized sessions
  */
 async function generateUnlockToken(transferId, salt) {
   return sha256(`unlock:${transferId}:${salt}`);
@@ -61,13 +62,18 @@ app.post('/', async (c) => {
 
   let passwordHash = null;
   let passwordSalt = null;
-  if (data.password && data.password.trim().length > 0) {
+  // Explicitly check that password is non-empty after trimming
+  if (data.password && typeof data.password === 'string' && data.password.trim().length > 0) {
     const hashed = await hashPassword(data.password.trim());
     passwordHash = hashed.hash;
     passwordSalt = hashed.salt;
   }
 
-  const rawIp = c.req.header('CF-Connecting-IP') || c.req.header('x-forwarded-for') || '127.0.0.1';
+  let rawIp = c.req.header('CF-Connecting-IP');
+  if (!rawIp) {
+    const xff = c.req.header('x-forwarded-for');
+    rawIp = xff ? xff.split(',')[0].trim() : '127.0.0.1';
+  }
   const ipHash = await anonymizeIp(rawIp);
 
   await db.prepare(
@@ -108,6 +114,7 @@ app.post('/', async (c) => {
     id: transferId,
     short_code: shortCode,
     sender_token: senderToken,
+    has_password: Boolean(passwordHash),
     transfer_type: data.transfer_type,
     title: data.title || null,
     message: data.message || null,
@@ -136,8 +143,8 @@ app.get('/:identifier', async (c) => {
   }
 
   const transfer = await db.prepare(
-    `SELECT * FROM transfers WHERE (id = ? OR short_code = ?)`
-  ).bind(identifier, identifier.toUpperCase()).first();
+    `SELECT * FROM transfers WHERE (id = ? OR short_code = ? COLLATE NOCASE)`
+  ).bind(identifier, identifier).first();
 
   if (!transfer) {
     return c.json({ error: 'Transfer not found or has been removed' }, 404);
@@ -169,7 +176,7 @@ app.get('/:identifier', async (c) => {
     const unlockToken = c.req.header('X-Unlock-Token');
     if (unlockToken) {
       const expectedToken = await generateUnlockToken(transfer.id, transfer.password_salt);
-      if (unlockToken === expectedToken) {
+      if (timingSafeEqual(unlockToken, expectedToken)) {
         isAuthorized = true;
       }
     }
@@ -180,7 +187,7 @@ app.get('/:identifier', async (c) => {
   let isSender = false;
   if (senderToken) {
     const hash = await sha256(senderToken);
-    if (hash === transfer.sender_token_hash) {
+    if (timingSafeEqual(hash, transfer.sender_token_hash)) {
       isSender = true;
       isAuthorized = true; // Senders bypass password requirement
     }
@@ -238,7 +245,7 @@ app.post('/:identifier/unlock', async (c) => {
   const rate = await checkRateLimit(c, 'password_guess', identifier, 5, 900);
   if (!rate.allowed) {
     return c.json({
-      error: 'Too many incorrect attempts. Please try again later.',
+      error: 'Too many incorrect attempts. Please wait before retrying.',
       retry_after: rate.retryAfter
     }, 429);
   }
@@ -256,8 +263,8 @@ app.post('/:identifier/unlock', async (c) => {
   }
 
   const transfer = await db.prepare(
-    `SELECT id, password_hash, password_salt, expires_at, status FROM transfers WHERE (id = ? OR short_code = ?)`
-  ).bind(identifier, identifier.toUpperCase()).first();
+    `SELECT id, password_hash, password_salt, expires_at, status FROM transfers WHERE (id = ? OR short_code = ? COLLATE NOCASE)`
+  ).bind(identifier, identifier).first();
 
   if (!transfer || transfer.status !== 'active') {
     return c.json({ error: 'Invalid transfer or incorrect password' }, 401);
@@ -303,7 +310,7 @@ app.delete('/:id', async (c) => {
     return c.json({ error: 'Transfer not found' }, 404);
   }
 
-  if (transfer.sender_token_hash !== senderTokenHash) {
+  if (!timingSafeEqual(transfer.sender_token_hash, senderTokenHash)) {
     return c.json({ error: 'Unauthorized management token' }, 403);
   }
 

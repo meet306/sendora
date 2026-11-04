@@ -121,3 +121,4 @@ Sendora includes an automated test runner (`node scripts/test-runner.js`) that v
 
 For full instructions on deploying Sendora to Cloudflare's free-tier infrastructure (D1, R2, Workers, and Pages), see the detailed guide:
 👉 **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)**
+

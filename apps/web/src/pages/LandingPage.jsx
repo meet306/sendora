@@ -10,7 +10,7 @@ import {
   Send,
   Download,
   FolderInput,
-  Shield,
+  ShieldCheck,
   Zap,
   Lock,
   Clock,
@@ -19,14 +19,16 @@ import {
   ArrowRight,
   HardDrive,
   CheckCircle,
-  HelpCircle
+  FileText
 } from 'lucide-react';
 
 export function LandingPage() {
   const navigate = useNavigate();
   const { addSentTransfer } = useHistory();
 
-  // Quick hero upload state
+  const [activeTab, setActiveTab] = useState('files'); // 'files' | 'clipboard'
+
+  // Files state
   const [files, setFiles] = useState([]);
   const [error, setError] = useState(null);
   const [password, setPassword] = useState('');
@@ -34,19 +36,26 @@ export function LandingPage() {
   const [maxDownloads, setMaxDownloads] = useState(null);
   const [message, setMessage] = useState('');
 
+  // Clipboard state
+  const [clipboardTitle, setClipboardTitle] = useState('');
+  const [clipboardText, setClipboardText] = useState('');
+
   // Upload progression
   const [isUploading, setIsUploading] = useState(false);
   const [activeFileIndex, setActiveFileIndex] = useState(0);
   const [currentProgress, setCurrentProgress] = useState(null);
   const [activeUploader, setActiveUploader] = useState(null);
 
-  // FAQ Accordion State
   const [openFaq, setOpenFaq] = useState(null);
 
   const handleStartUpload = async (e) => {
     e.preventDefault();
-    if (files.length === 0) {
-      setError('Please add at least one file to upload.');
+    if (activeTab === 'files' && files.length === 0) {
+      setError('Please select or drop at least one file.');
+      return;
+    }
+    if (activeTab === 'clipboard' && !clipboardText.trim()) {
+      setError('Please paste text or code to share.');
       return;
     }
 
@@ -54,48 +63,68 @@ export function LandingPage() {
     setIsUploading(true);
 
     try {
-      // 1. Create transfer record on backend
-      const transfer = await api.createTransfer({
-        title: files.length === 1 ? files[0].name : `${files.length} Files Transfer`,
-        message: message || undefined,
-        transfer_type: 'standard',
-        password: password || undefined,
-        expiration_hours: expirationHours,
-        max_downloads: maxDownloads
-      });
-
-      // 2. Upload files in sequence
-      for (let i = 0; i < files.length; i++) {
-        setActiveFileIndex(i);
-        const file = files[i];
-
-        const uploader = new MultipartUploader({
-          file,
-          transferId: transfer.id,
-          onProgress: (prog) => setCurrentProgress(prog)
+      if (activeTab === 'files') {
+        const transfer = await api.createTransfer({
+          title: files.length === 1 ? files[0].name : `${files.length} Files Transfer`,
+          message: message || undefined,
+          transfer_type: 'standard',
+          password: password || undefined,
+          expiration_hours: expirationHours,
+          max_downloads: maxDownloads
         });
 
-        setActiveUploader(uploader);
-        await uploader.start();
+        for (let i = 0; i < files.length; i++) {
+          setActiveFileIndex(i);
+          const file = files[i];
+
+          const uploader = new MultipartUploader({
+            file,
+            transferId: transfer.id,
+            onProgress: (prog) => setCurrentProgress(prog)
+          });
+
+          setActiveUploader(uploader);
+          await uploader.start();
+        }
+
+        addSentTransfer({
+          id: transfer.id,
+          short_code: transfer.short_code,
+          title: transfer.title,
+          sender_token: transfer.sender_token,
+          created_at: transfer.created_at,
+          expires_at: transfer.expires_at,
+          file_count: files.length,
+          total_size: files.reduce((acc, f) => acc + f.size, 0)
+        });
+
+        navigate(`/transfer/${transfer.id}/success?key=${encodeURIComponent(transfer.sender_token)}`);
+      } else {
+        const transfer = await api.createTransfer({
+          title: clipboardTitle || 'Shared Snippet',
+          transfer_type: 'clipboard',
+          clipboard_text: clipboardText,
+          password: password || undefined,
+          expiration_hours: expirationHours,
+          max_downloads: maxDownloads
+        });
+
+        addSentTransfer({
+          id: transfer.id,
+          short_code: transfer.short_code,
+          title: transfer.title,
+          sender_token: transfer.sender_token,
+          created_at: transfer.created_at,
+          expires_at: transfer.expires_at,
+          file_count: 0,
+          total_size: new TextEncoder().encode(clipboardText).length
+        });
+
+        navigate(`/transfer/${transfer.id}/success?key=${encodeURIComponent(transfer.sender_token)}`);
       }
-
-      // 3. Record in local history
-      addSentTransfer({
-        id: transfer.id,
-        short_code: transfer.short_code,
-        title: transfer.title,
-        sender_token: transfer.sender_token,
-        created_at: transfer.created_at,
-        expires_at: transfer.expires_at,
-        file_count: files.length,
-        total_size: files.reduce((acc, f) => acc + f.size, 0)
-      });
-
-      // 4. Redirect to transfer success page
-      navigate(`/transfer/${transfer.id}/success?key=${encodeURIComponent(transfer.sender_token)}`);
     } catch (err) {
       console.error('Upload failed:', err);
-      setError(err.message || 'Transfer failed. Please try again.');
+      setError(err.message || 'Transfer failed. Please check inputs and retry.');
       setIsUploading(false);
     }
   };
@@ -119,11 +148,11 @@ export function LandingPage() {
     },
     {
       q: 'How does automatic expiration work?',
-      a: 'You choose how long your transfer stays active: 1 hour, 6 hours, 24 hours, or 7 days. Once the expiration time arrives, the files are immediately inaccessible and are permanently purged from private storage by automated background Cloudflare Cron triggers.'
+      a: 'You choose how long your transfer stays active: 1 hour, 6 hours, 24 hours, or 7 days. Once the expiration time arrives, the files become inaccessible immediately and are permanently purged from private storage by automated background Cloudflare Cron triggers.'
     },
     {
-      q: 'Can I protect transfers with a password?',
-      a: 'Yes. You can optionally set a password. It is hashed using high-iteration PBKDF2 WebCrypto before storage, and recipients must provide the password before viewing or downloading any files.'
+      q: 'How does password protection work?',
+      a: 'You can optionally enable password protection. When enabled, the password is encrypted using high-iteration PBKDF2 WebCrypto before storage. Recipients must enter the password to view file names, sizes, or download any files.'
     },
     {
       q: 'What is the "Request Files" feature?',
@@ -133,125 +162,192 @@ export function LandingPage() {
 
   return (
     <div className="flex flex-col min-h-screen">
-      {/* Upload Progress Modal */}
       <UploadProgressModal
         isOpen={isUploading}
         currentFileIndex={activeFileIndex}
-        totalFiles={files.length}
+        totalFiles={activeTab === 'files' ? files.length : 1}
         progressData={currentProgress}
         onCancel={handleCancelUpload}
       />
 
-      {/* Hero Section */}
-      <section className="relative pt-12 pb-20 md:pt-20 md:pb-32 overflow-hidden dot-grid border-b border-sendora-200/60 dark:border-sendora-800/60">
+      {/* Editorial Hero Section */}
+      <section className="pt-12 pb-16 md:pt-20 md:pb-24 border-b border-paper-200 dark:border-obsidian-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-start">
-            {/* Editorial Headline */}
-            <div className="lg:col-span-6 space-y-6 pt-2">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-mono font-medium bg-sendora-100 dark:bg-sendora-800 text-sendora-800 dark:text-sendora-200 border border-sendora-200 dark:border-sendora-700">
-                <Sparkles className="w-3.5 h-3.5 text-accent" />
-                Zero Account Required • 200 MB Free
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-10 items-start">
+            {/* Left Column: Swiss Editorial Headline */}
+            <div className="lg:col-span-6 space-y-6 pt-1">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md text-xs font-mono font-medium bg-paper-100 dark:bg-obsidian-800 text-paper-800 dark:text-obsidian-200 border border-paper-200 dark:border-obsidian-700">
+                <span className="w-1.5 h-1.5 rounded-full bg-accent" />
+                Zero Accounts • 200 MB Limit • Automatic Purge
               </div>
 
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-sendora-900 dark:text-white leading-[1.08]">
+              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-paper-900 dark:text-obsidian-50 leading-[1.05]">
                 Your Files.<br />
-                <span className="text-accent underline decoration-accent/20 decoration-wavy">One Link.</span><br />
+                <span className="text-accent">One Link.</span><br />
                 Anywhere.
               </h1>
 
-              <p className="text-base sm:text-lg text-sendora-600 dark:text-sendora-400 max-w-lg leading-relaxed">
-                Send files, receive files, and share securely. Powered by direct-to-storage multipart uploads and automatic expiration.
+              <p className="text-sm sm:text-base text-paper-600 dark:text-obsidian-400 max-w-md leading-relaxed">
+                Send files, receive files, and share securely. Powered by direct-to-storage multipart uploads and automated background expiration.
               </p>
 
-              {/* Quick feature checklist */}
-              <div className="grid grid-cols-2 gap-3 pt-2 text-xs font-medium text-sendora-700 dark:text-sendora-300">
+              {/* Architectural features list */}
+              <div className="grid grid-cols-2 gap-3 pt-2 text-xs font-mono text-paper-700 dark:text-obsidian-300">
                 <div className="flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-                  <span>PBKDF2 Password Protection</span>
+                  <span className="text-accent font-bold">01.</span>
+                  <span>PBKDF2 Password Vault</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-                  <span>Instant QR Code Generation</span>
+                  <span className="text-accent font-bold">02.</span>
+                  <span>Direct R2 Multipart</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                  <span className="text-accent font-bold">03.</span>
                   <span>Strict Download Limits</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-                  <span>Automatic Expiry Cleanup</span>
+                  <span className="text-accent font-bold">04.</span>
+                  <span>Hourly Cron Auto-Purge</span>
                 </div>
               </div>
 
-              {/* Alternate action */}
               <div className="pt-4 flex flex-wrap items-center gap-4">
                 <Link
                   to="/request"
-                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-sendora-300 dark:border-sendora-700 bg-white dark:bg-sendora-900 text-xs font-semibold text-sendora-900 dark:text-white hover:bg-sendora-50 dark:hover:bg-sendora-800 transition-colors shadow-subtle"
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-paper-300 dark:border-obsidian-700 bg-white dark:bg-obsidian-900 text-xs font-semibold text-paper-900 dark:text-obsidian-100 hover:bg-paper-100 dark:hover:bg-obsidian-800 transition-colors shadow-subtle"
                 >
                   <FolderInput className="w-4 h-4 text-accent" />
-                  Need to receive files instead? Create a Drop
+                  Need to receive files? Create Dropzone
                 </Link>
+
                 <Link
                   to="/receive"
-                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-accent hover:text-accent-hover transition-colors"
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-accent hover:underline font-mono"
                 >
                   Enter Transfer Code <ArrowRight className="w-3.5 h-3.5" />
                 </Link>
               </div>
             </div>
 
-            {/* Quick Hero Upload Studio */}
+            {/* Right Column: Tactile Upload Canvas */}
             <div className="lg:col-span-6">
-              <div className="bg-white/90 dark:bg-sendora-900/90 rounded-3xl border border-sendora-200 dark:border-sendora-800 p-6 md:p-8 shadow-premium backdrop-blur-md space-y-5">
-                <div className="flex items-center justify-between border-b border-sendora-100 dark:border-sendora-800/80 pb-4">
-                  <div>
-                    <h2 className="text-base font-bold text-sendora-900 dark:text-white">
-                      Instant Transfer
-                    </h2>
-                    <p className="text-xs text-sendora-500">
-                      Files are securely deleted after expiration
-                    </p>
+              <div className="bg-white dark:bg-obsidian-900 rounded-3xl border border-paper-200 dark:border-obsidian-700 p-6 md:p-8 shadow-card dark:shadow-card-dark space-y-5">
+                {/* Segmented Mode Selector */}
+                <div className="flex items-center justify-between border-b border-paper-100 dark:border-obsidian-800 pb-3">
+                  <div className="flex items-center gap-1 p-1 rounded-xl bg-paper-100 dark:bg-obsidian-800">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveTab('files');
+                        setError(null);
+                      }}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                        activeTab === 'files'
+                          ? 'bg-white dark:bg-obsidian-900 text-paper-900 dark:text-white shadow-subtle'
+                          : 'text-paper-500 dark:text-obsidian-400 hover:text-paper-900'
+                      }`}
+                    >
+                      Files & Folders
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveTab('clipboard');
+                        setError(null);
+                      }}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                        activeTab === 'clipboard'
+                          ? 'bg-white dark:bg-obsidian-900 text-paper-900 dark:text-white shadow-subtle'
+                          : 'text-paper-500 dark:text-obsidian-400 hover:text-paper-900'
+                      }`}
+                    >
+                      Secure Text Snippet
+                    </button>
                   </div>
-                  <span className="px-2.5 py-1 rounded-lg text-xs font-mono font-medium bg-accent/10 text-accent">
-                    Max 200 MB
+
+                  <span className="text-[11px] font-mono text-paper-400 dark:text-obsidian-500">
+                    200 MB Free
                   </span>
                 </div>
 
                 <form onSubmit={handleStartUpload} className="space-y-4">
-                  <Dropzone
-                    files={files}
-                    setFiles={setFiles}
-                    error={error}
-                    setError={setError}
-                  />
+                  {activeTab === 'files' ? (
+                    <>
+                      <Dropzone
+                        files={files}
+                        setFiles={setFiles}
+                        error={error}
+                        setError={setError}
+                      />
 
-                  {files.length > 0 && (
-                    <TransferOptions
-                      password={password}
-                      setPassword={setPassword}
-                      expirationHours={expirationHours}
-                      setExpirationHours={setExpirationHours}
-                      maxDownloads={maxDownloads}
-                      setMaxDownloads={setMaxDownloads}
-                      message={message}
-                      setMessage={setMessage}
-                    />
+                      <TransferOptions
+                        password={password}
+                        setPassword={setPassword}
+                        expirationHours={expirationHours}
+                        setExpirationHours={setExpirationHours}
+                        maxDownloads={maxDownloads}
+                        setMaxDownloads={setMaxDownloads}
+                        message={message}
+                        setMessage={setMessage}
+                      />
+                    </>
+                  ) : (
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-xs font-bold text-paper-800 dark:text-obsidian-200 mb-1">
+                          Snippet Title (Optional)
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Configuration Keys, Private Notes..."
+                          value={clipboardTitle}
+                          onChange={(e) => setClipboardTitle(e.target.value)}
+                          className="w-full px-3.5 py-2 text-xs rounded-xl bg-paper-50 dark:bg-obsidian-800 border border-paper-200 dark:border-obsidian-700 text-paper-900 dark:text-obsidian-100"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-paper-800 dark:text-obsidian-200 mb-1">
+                          Text / Code Content
+                        </label>
+                        <textarea
+                          rows={6}
+                          required
+                          placeholder="Paste sensitive text, markdown, or code here..."
+                          value={clipboardText}
+                          onChange={(e) => setClipboardText(e.target.value)}
+                          className="w-full p-3 font-mono text-xs rounded-xl bg-paper-50 dark:bg-obsidian-800 border border-paper-200 dark:border-obsidian-700 text-paper-900 dark:text-obsidian-100 resize-none select-text"
+                        />
+                      </div>
+
+                      <TransferOptions
+                        password={password}
+                        setPassword={setPassword}
+                        expirationHours={expirationHours}
+                        setExpirationHours={setExpirationHours}
+                        maxDownloads={maxDownloads}
+                        setMaxDownloads={setMaxDownloads}
+                        message=""
+                        setMessage={() => {}}
+                      />
+                    </div>
                   )}
 
                   <button
                     type="submit"
-                    disabled={files.length === 0}
-                    className={`w-full py-3.5 px-6 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-all ${
-                      files.length > 0
-                        ? 'bg-accent text-white hover:bg-accent-hover shadow-md hover:shadow-glow cursor-pointer'
-                        : 'bg-sendora-200 dark:bg-sendora-800 text-sendora-400 cursor-not-allowed'
+                    disabled={activeTab === 'files' ? files.length === 0 : !clipboardText.trim()}
+                    className={`w-full py-3.5 px-6 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                      (activeTab === 'files' ? files.length > 0 : clipboardText.trim())
+                        ? 'bg-accent text-white hover:bg-accent-hover shadow-sm hover:shadow-glow'
+                        : 'bg-paper-200 dark:bg-obsidian-800 text-paper-400 dark:text-obsidian-600 cursor-not-allowed'
                     }`}
                   >
                     <Send className="w-4 h-4" />
-                    {files.length === 0
-                      ? 'Add files to generate link'
-                      : `Transfer ${files.length} ${files.length === 1 ? 'File' : 'Files'}`}
+                    {activeTab === 'files'
+                      ? files.length === 0
+                        ? 'Select files to generate link'
+                        : `Transfer ${files.length} ${files.length === 1 ? 'File' : 'Files'}`
+                      : 'Generate Secure Snippet Link'}
                   </button>
                 </form>
               </div>
@@ -260,191 +356,98 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* Two Core Workflows Section */}
-      <section className="py-20 bg-white dark:bg-sendora-950 border-b border-sendora-200/60 dark:border-sendora-800/60">
+      {/* Two Workflows Breakdown */}
+      <section className="py-16 md:py-24 border-b border-paper-200 dark:border-obsidian-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
-          <div className="text-center max-w-2xl mx-auto space-y-3">
-            <h2 className="text-xs font-mono uppercase tracking-widest text-accent font-semibold">
-              Engineered For Two Directions
+          <div className="max-w-xl space-y-2">
+            <h2 className="text-xs font-mono uppercase tracking-widest text-accent font-bold">
+              Product Modality
             </h2>
-            <p className="text-3xl font-extrabold text-sendora-900 dark:text-white">
-              Send files outwards or request them inwards.
-            </p>
-            <p className="text-sm text-sendora-600 dark:text-sendora-400">
-              Traditional tools force everyone into shared drives. Sendora creates clean, single-purpose temporary bridges.
+            <p className="text-3xl font-extrabold text-paper-900 dark:text-obsidian-50 tracking-tight">
+              Share outbound. Collect inbound.
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {/* Workflow 1: Send Files */}
-            <div className="p-8 rounded-3xl bg-sendora-50 dark:bg-sendora-900/40 border border-sendora-200 dark:border-sendora-800 space-y-5">
-              <div className="w-12 h-12 rounded-2xl bg-blue-500/10 text-blue-500 flex items-center justify-center">
-                <Send className="w-6 h-6" />
+            {/* Outbound Send */}
+            <div className="p-8 rounded-3xl bg-white dark:bg-obsidian-900 border border-paper-200 dark:border-obsidian-700 space-y-4 shadow-subtle">
+              <div className="flex items-center justify-between">
+                <div className="w-10 h-10 rounded-xl bg-paper-100 dark:bg-obsidian-800 flex items-center justify-center text-accent font-mono font-bold">
+                  01
+                </div>
+                <span className="text-[11px] font-mono text-paper-400 uppercase">Outbound Transfer</span>
               </div>
-              <div className="space-y-2">
-                <h3 className="text-xl font-bold text-sendora-900 dark:text-white">
-                  Send Files
-                </h3>
-                <p className="text-sm text-sendora-600 dark:text-sendora-400 leading-relaxed">
-                  Upload photos, documents, archives, or entire code repositories. You get a shareable link, short 6-character code, and instant QR code.
-                </p>
-              </div>
-              <ul className="space-y-2 text-xs text-sendora-700 dark:text-sendora-300">
-                <li className="flex items-center gap-2">
-                  <CheckCircle className="w-3.5 h-3.5 text-blue-500" />
-                  Optional PBKDF2 encryption password
-                </li>
-                <li className="flex items-center gap-2">
-                  <CheckCircle className="w-3.5 h-3.5 text-blue-500" />
-                  Automatic self-destruct after 1, 5, or 10 downloads
-                </li>
-                <li className="flex items-center gap-2">
-                  <CheckCircle className="w-3.5 h-3.5 text-blue-500" />
-                  Sender management key for instant early deletion
-                </li>
-              </ul>
+              <h3 className="text-lg font-bold text-paper-900 dark:text-obsidian-100">
+                Send Files Securely
+              </h3>
+              <p className="text-xs text-paper-600 dark:text-obsidian-400 leading-relaxed">
+                Upload files or folders up to 200 MB. Generate an unguessable 6-digit code and QR code. Optional password protection with PBKDF2 WebCrypto, strict download limits, and automatic deletion.
+              </p>
               <Link
                 to="/send"
-                className="inline-flex items-center gap-1.5 text-xs font-bold text-accent hover:text-accent-hover pt-2"
+                className="inline-flex items-center gap-1.5 text-xs font-bold text-accent hover:underline pt-2 font-mono"
               >
-                Open Send Studio <ArrowRight className="w-3.5 h-3.5" />
+                Open Send Studio →
               </Link>
             </div>
 
-            {/* Workflow 2: Request Files */}
-            <div className="p-8 rounded-3xl bg-sendora-50 dark:bg-sendora-900/40 border border-sendora-200 dark:border-sendora-800 space-y-5">
-              <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center">
-                <FolderInput className="w-6 h-6" />
+            {/* Inbound Request */}
+            <div className="p-8 rounded-3xl bg-white dark:bg-obsidian-900 border border-paper-200 dark:border-obsidian-700 space-y-4 shadow-subtle">
+              <div className="flex items-center justify-between">
+                <div className="w-10 h-10 rounded-xl bg-paper-100 dark:bg-obsidian-800 flex items-center justify-center text-accent font-mono font-bold">
+                  02
+                </div>
+                <span className="text-[11px] font-mono text-paper-400 uppercase">Inbound Dropzone</span>
               </div>
-              <div className="space-y-2">
-                <h3 className="text-xl font-bold text-sendora-900 dark:text-white">
-                  Request Files (Dropzones)
-                </h3>
-                <p className="text-sm text-sendora-600 dark:text-sendora-400 leading-relaxed">
-                  Collecting homework, invoices, or client deliverables? Create a branded drop link. People upload files to you without seeing what others uploaded.
-                </p>
-              </div>
-              <ul className="space-y-2 text-xs text-sendora-700 dark:text-sendora-300">
-                <li className="flex items-center gap-2">
-                  <CheckCircle className="w-3.5 h-3.5 text-amber-500" />
-                  Public uploaders never see past submissions
-                </li>
-                <li className="flex items-center gap-2">
-                  <CheckCircle className="w-3.5 h-3.5 text-amber-500" />
-                  Private requester token unlocks received files
-                </li>
-                <li className="flex items-center gap-2">
-                  <CheckCircle className="w-3.5 h-3.5 text-amber-500" />
-                  Close dropzone anytime to freeze submissions
-                </li>
-              </ul>
+              <h3 className="text-lg font-bold text-paper-900 dark:text-obsidian-100">
+                Request Files (Dropzones)
+              </h3>
+              <p className="text-xs text-paper-600 dark:text-obsidian-400 leading-relaxed">
+                Need to collect files from clients or students? Create a branded drop link. Third parties drop files directly to your vault. Public uploaders can never see what anyone else submitted.
+              </p>
               <Link
                 to="/request"
-                className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-600 dark:text-amber-400 hover:underline pt-2"
+                className="inline-flex items-center gap-1.5 text-xs font-bold text-accent hover:underline pt-2 font-mono"
               >
-                Create File Request <ArrowRight className="w-3.5 h-3.5" />
+                Create File Request →
               </Link>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Security & Threat Defense Storytelling */}
-      <section className="py-20 bg-sendora-50 dark:bg-sendora-900/20 border-b border-sendora-200/60 dark:border-sendora-800/60">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
-          <div className="text-center max-w-xl mx-auto space-y-3">
-            <h2 className="text-xs font-mono uppercase tracking-widest text-accent font-semibold">
-              Security By Architecture
-            </h2>
-            <p className="text-3xl font-extrabold text-sendora-900 dark:text-white">
-              Privacy is not a setting. It is the foundation.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div className="p-6 rounded-2xl bg-white dark:bg-sendora-900 border border-sendora-200 dark:border-sendora-800 space-y-3">
-              <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-500 flex items-center justify-center">
-                <HardDrive className="w-5 h-5" />
-              </div>
-              <h4 className="text-sm font-bold text-sendora-900 dark:text-white">
-                Private R2 Object Vault
-              </h4>
-              <p className="text-xs text-sendora-500 dark:text-sendora-400 leading-relaxed">
-                Buckets have zero public URLs. Files are strictly accessible via short-lived, signed authorizations.
-              </p>
-            </div>
-
-            <div className="p-6 rounded-2xl bg-white dark:bg-sendora-900 border border-sendora-200 dark:border-sendora-800 space-y-3">
-              <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-500 flex items-center justify-center">
-                <Clock className="w-5 h-5" />
-              </div>
-              <h4 className="text-sm font-bold text-sendora-900 dark:text-white">
-                Automated Cron Purge
-              </h4>
-              <p className="text-xs text-sendora-500 dark:text-sendora-400 leading-relaxed">
-                Cloudflare Cron Triggers run continuously to purge expired files and metadata idempotently.
-              </p>
-            </div>
-
-            <div className="p-6 rounded-2xl bg-white dark:bg-sendora-900 border border-sendora-200 dark:border-sendora-800 space-y-3">
-              <div className="w-10 h-10 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-500 flex items-center justify-center">
-                <Lock className="w-5 h-5" />
-              </div>
-              <h4 className="text-sm font-bold text-sendora-900 dark:text-white">
-                Zero Plaintext Passwords
-              </h4>
-              <p className="text-xs text-sendora-500 dark:text-sendora-400 leading-relaxed">
-                Protected by PBKDF2 with 100,000 iterations and progressive rate-limiting lockouts.
-              </p>
-            </div>
-
-            <div className="p-6 rounded-2xl bg-white dark:bg-sendora-900 border border-sendora-200 dark:border-sendora-800 space-y-3">
-              <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-500 flex items-center justify-center">
-                <Shield className="w-5 h-5" />
-              </div>
-              <h4 className="text-sm font-bold text-sendora-900 dark:text-white">
-                Anonymized Metadata
-              </h4>
-              <p className="text-xs text-sendora-500 dark:text-sendora-400 leading-relaxed">
-                Client IP addresses are salted and hashed. We never store or display plaintext IPs.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* FAQ Section */}
-      <section className="py-20 bg-white dark:bg-sendora-950 border-b border-sendora-200/60 dark:border-sendora-800/60">
+      {/* FAQ Accordion */}
+      <section className="py-16 md:py-24">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
-          <div className="text-center space-y-2">
-            <h2 className="text-2xl font-bold text-sendora-900 dark:text-white">
+          <div className="space-y-1">
+            <h2 className="text-2xl font-bold text-paper-900 dark:text-obsidian-50 tracking-tight">
               Frequently Asked Questions
             </h2>
-            <p className="text-xs text-sendora-500">
-              Clear answers regarding privacy, file retention, and security.
+            <p className="text-xs text-paper-500">
+              Clear principles regarding encryption, storage limits, and expiration.
             </p>
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-2">
             {faqs.map((faq, idx) => (
               <div
                 key={idx}
-                className="rounded-2xl border border-sendora-200 dark:border-sendora-800 bg-sendora-50/50 dark:bg-sendora-900/30 overflow-hidden"
+                className="rounded-2xl border border-paper-200 dark:border-obsidian-700 bg-white dark:bg-obsidian-900 overflow-hidden shadow-subtle"
               >
                 <button
                   type="button"
                   onClick={() => setOpenFaq(openFaq === idx ? null : idx)}
-                  className="w-full p-4 text-left flex items-center justify-between text-sm font-semibold text-sendora-900 dark:text-white hover:text-accent transition-colors"
+                  className="w-full p-4 text-left flex items-center justify-between text-xs font-bold text-paper-900 dark:text-obsidian-100 hover:text-accent transition-colors"
                 >
                   <span>{faq.q}</span>
                   <ChevronRight
-                    className={`w-4 h-4 text-sendora-400 transition-transform ${
+                    className={`w-4 h-4 text-paper-400 transition-transform ${
                       openFaq === idx ? 'rotate-90 text-accent' : ''
                     }`}
                   />
                 </button>
                 {openFaq === idx && (
-                  <div className="px-4 pb-4 pt-1 text-xs text-sendora-600 dark:text-sendora-400 leading-relaxed border-t border-sendora-200/50 dark:border-sendora-800/50">
+                  <div className="px-4 pb-4 pt-1 text-xs text-paper-600 dark:text-obsidian-400 leading-relaxed border-t border-paper-100 dark:border-obsidian-800">
                     {faq.a}
                   </div>
                 )}

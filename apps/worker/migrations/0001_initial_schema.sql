@@ -144,3 +144,4 @@ CREATE TABLE IF NOT EXISTS lookup_attempts (
 );
 
 CREATE INDEX IF NOT EXISTS idx_lookup_attempts_lookup ON lookup_attempts(identifier_type, identifier, ip_hash);
+

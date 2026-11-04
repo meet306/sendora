@@ -9,8 +9,7 @@ import {
   Sun,
   Moon,
   Search,
-  ArrowRight,
-  ShieldCheck
+  ArrowRight
 } from 'lucide-react';
 
 export function Navbar() {
@@ -29,20 +28,20 @@ export function Navbar() {
   };
 
   const navLinks = [
-    { name: 'Send Files', path: '/send', icon: Send },
+    { name: 'Send', path: '/send', icon: Send },
     { name: 'Receive', path: '/receive', icon: Download },
-    { name: 'Request Files', path: '/request', icon: FolderInput },
+    { name: 'Request Drop', path: '/request', icon: FolderInput },
     { name: 'History', path: '/history', icon: History }
   ];
 
   return (
-    <header className="sticky top-0 z-40 w-full backdrop-blur-md bg-white/80 dark:bg-sendora-950/80 border-b border-sendora-200/80 dark:border-sendora-800/80 transition-colors">
+    <header className="sticky top-0 z-40 w-full backdrop-blur-md bg-paper-50/90 dark:bg-obsidian-950/90 border-b border-paper-200 dark:border-obsidian-800 transition-colors">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
-        {/* Brand Logo */}
+        {/* Brand Geometric Logo */}
         <Link to="/" className="flex items-center gap-2.5 group">
-          <div className="w-9 h-9 rounded-xl bg-sendora-900 dark:bg-white text-white dark:text-sendora-900 flex items-center justify-center font-bold shadow-sm transition-transform group-hover:scale-105">
+          <div className="w-8 h-8 rounded-lg bg-paper-900 dark:bg-paper-50 text-white dark:text-obsidian-950 flex items-center justify-center font-bold transition-transform group-hover:scale-105 shadow-sm">
             <svg
-              className="w-5 h-5 text-accent dark:text-accent"
+              className="w-4 h-4 text-accent"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -55,13 +54,11 @@ export function Navbar() {
               <path d="m16 16-4-4-4 4" />
             </svg>
           </div>
-          <div className="flex flex-col">
-            <span className="font-extrabold tracking-tight text-lg text-sendora-900 dark:text-white leading-none">
+          <div className="flex items-baseline gap-1.5">
+            <span className="font-extrabold tracking-tight text-lg text-paper-900 dark:text-obsidian-50">
               Sendora
             </span>
-            <span className="text-[10px] font-mono text-sendora-500 dark:text-sendora-400 tracking-wider uppercase mt-0.5">
-              Secure Cloud
-            </span>
+            <span className="w-1.5 h-1.5 rounded-full bg-accent" />
           </div>
         </Link>
 
@@ -74,35 +71,34 @@ export function Navbar() {
               <Link
                 key={link.path}
                 to={link.path}
-                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                   isActive
-                    ? 'bg-sendora-100 text-sendora-900 dark:bg-sendora-800 dark:text-white font-semibold'
-                    : 'text-sendora-600 hover:text-sendora-900 hover:bg-sendora-100/60 dark:text-sendora-400 dark:hover:text-white dark:hover:bg-sendora-800/50'
+                    ? 'bg-paper-200/80 text-paper-900 dark:bg-obsidian-800 dark:text-white font-bold'
+                    : 'text-paper-600 hover:text-paper-900 hover:bg-paper-100 dark:text-obsidian-400 dark:hover:text-white dark:hover:bg-obsidian-800/50'
                 }`}
               >
-                <Icon className={`w-4 h-4 ${isActive ? 'text-accent' : ''}`} />
+                <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-accent' : ''}`} />
                 {link.name}
               </Link>
             );
           })}
         </nav>
 
-        {/* Quick Code Lookup & Utilities */}
-        <div className="flex items-center gap-3">
-          {/* Quick jump form */}
+        {/* Quick Code Lookup & Theme Switch */}
+        <div className="flex items-center gap-2.5">
           <form onSubmit={handleQuickJump} className="relative hidden sm:block">
-            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-sendora-400" />
+            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-paper-400 dark:text-obsidian-500" />
             <input
               type="text"
-              placeholder="Enter transfer code..."
+              placeholder="Code (e.g. K7M2XP)..."
               value={quickCode}
               onChange={(e) => setQuickCode(e.target.value)}
-              className="w-44 lg:w-48 pl-8 pr-7 py-1.5 text-xs font-mono bg-sendora-100/70 dark:bg-sendora-900/70 border border-sendora-200 dark:border-sendora-800 rounded-lg focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent text-sendora-900 dark:text-sendora-100 placeholder:text-sendora-400 transition-all uppercase"
+              className="w-40 lg:w-44 pl-8 pr-7 py-1.5 text-xs font-mono bg-paper-100 dark:bg-obsidian-900 border border-paper-200 dark:border-obsidian-700 rounded-lg focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent text-paper-900 dark:text-obsidian-100 placeholder:text-paper-400 dark:placeholder:text-obsidian-500 transition-all uppercase"
             />
             {quickCode && (
               <button
                 type="submit"
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-accent hover:text-accent-hover"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-accent hover:opacity-80"
               >
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
@@ -113,9 +109,9 @@ export function Navbar() {
           <button
             onClick={toggleTheme}
             aria-label="Toggle theme"
-            className="p-2 rounded-lg text-sendora-600 hover:text-sendora-900 hover:bg-sendora-100 dark:text-sendora-400 dark:hover:text-white dark:hover:bg-sendora-800 transition-colors"
+            className="p-2 rounded-lg text-paper-600 hover:text-paper-900 hover:bg-paper-200/50 dark:text-obsidian-400 dark:hover:text-white dark:hover:bg-obsidian-800 transition-colors"
           >
-            {theme === 'dark' ? <Sun className="w-4 h-4 text-amberAccent" /> : <Moon className="w-4 h-4" />}
+            {theme === 'dark' ? <Sun className="w-4 h-4 text-accent" /> : <Moon className="w-4 h-4" />}
           </button>
         </div>
       </div>

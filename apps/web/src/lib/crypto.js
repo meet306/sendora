@@ -104,3 +104,4 @@ export function getCountdown(timestampSec) {
 
   return { label, isExpired: false, remainingSec: remaining };
 }
+

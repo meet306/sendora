@@ -4,58 +4,64 @@
 
 @layer base {
   :root {
-    --color-bg: #F8FAFC;
-    --color-surface: #FFFFFF;
-    --color-border: #E2E8F0;
+    --bg-page: #FDFDFC;
+    --text-primary: #191917;
+    --border-subtle: #EEEEEC;
   }
 
   .dark {
-    --color-bg: #090D16;
-    --color-surface: #0F172A;
-    --color-border: #1E293B;
+    --bg-page: #0C0D0E;
+    --text-primary: #EDEDED;
+    --border-subtle: #1E2024;
   }
 
   body {
+    background-color: var(--bg-page);
+    color: var(--text-primary);
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 }
 
-/* Custom subtle scrollbar */
+/* Custom minimal scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.3);
-  border-radius: 3px;
+  background: rgba(142, 142, 137, 0.3);
+  border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(148, 163, 184, 0.5);
+  background: rgba(142, 142, 137, 0.5);
 }
 
-/* Glass & frosted surfaces with restraint */
-.glass-panel {
-  background-color: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(226, 232, 240, 0.8);
+/* Tactile paper texture */
+.paper-surface {
+  background-color: #FFFFFF;
+  border: 1px solid #E8E8E5;
 }
 
-.dark .glass-panel {
-  background-color: rgba(15, 23, 42, 0.85);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(30, 41, 59, 0.8);
+.dark .paper-surface {
+  background-color: #141619;
+  border: 1px solid #22252A;
 }
 
-/* Dot grid background pattern for hero visual distinction */
-.dot-grid {
-  background-image: radial-gradient(rgba(148, 163, 184, 0.2) 1px, transparent 1px);
-  background-size: 24px 24px;
+/* Hairline borders */
+.border-hairline {
+  border-width: 1px;
+  border-color: #E8E8E5;
 }
 
-.dark .dot-grid {
-  background-image: radial-gradient(rgba(51, 65, 85, 0.4) 1px, transparent 1px);
-  background-size: 24px 24px;
+.dark .border-hairline {
+  border-color: #22252A;
+}
+
+/* Tabular figures for numbers, timers, and metrics */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
 }

@@ -24,3 +24,4 @@ export async function securityHeadersMiddleware(c, next) {
     c.res.headers.set('Access-Control-Expose-Headers', 'Content-Disposition, Content-Length, Content-Range, ETag');
   }
 }
+

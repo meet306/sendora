@@ -3,23 +3,23 @@ import { FileText, ShieldAlert } from 'lucide-react';
 
 export function TermsOfServicePage() {
   return (
-    <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-20 space-y-8 animate-fade-in">
-      <div className="space-y-2 border-b border-sendora-200 dark:border-sendora-800 pb-6">
-        <div className="flex items-center gap-2 text-accent text-xs font-mono font-semibold uppercase tracking-wider">
-          <FileText className="w-4 h-4" />
+    <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24 space-y-10 animate-fade-in">
+      <div className="space-y-3 border-b border-paper-300 dark:border-obsidian-700 pb-8">
+        <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-md bg-paper-200/80 dark:bg-obsidian-800 text-vermilion text-[11px] font-mono font-semibold uppercase tracking-wider">
+          <FileText className="w-3.5 h-3.5" />
           Service Agreement & Acceptable Use
         </div>
-        <h1 className="text-3xl font-extrabold tracking-tight text-sendora-900 dark:text-white">
+        <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-paper-950 dark:text-obsidian-50">
           Terms of Service
         </h1>
-        <p className="text-xs text-sendora-500 font-mono">
+        <p className="text-xs text-paper-500 dark:text-obsidian-400 font-mono">
           Last revised: November 2026 • Effective immediately
         </p>
       </div>
 
-      <div className="space-y-6 text-sm text-sendora-700 dark:text-sendora-300 leading-relaxed">
+      <div className="space-y-8 text-sm text-paper-700 dark:text-obsidian-300 leading-relaxed font-normal">
         <section className="space-y-2">
-          <h2 className="text-base font-bold text-sendora-900 dark:text-white">
+          <h2 className="text-base font-bold text-paper-950 dark:text-obsidian-100">
             1. Purpose of the Platform
           </h2>
           <p>
@@ -28,13 +28,13 @@ export function TermsOfServicePage() {
         </section>
 
         <section className="space-y-2">
-          <h2 className="text-base font-bold text-sendora-900 dark:text-white">
+          <h2 className="text-base font-bold text-paper-950 dark:text-obsidian-100">
             2. Acceptable Use Policy
           </h2>
           <p>
             You agree to use Sendora solely for lawful purposes. You must not upload, transmit, or share:
           </p>
-          <ul className="list-disc pl-5 space-y-1 text-xs">
+          <ul className="list-disc pl-5 space-y-1 text-xs text-paper-600 dark:text-obsidian-400">
             <li>Malicious software, trojans, ransomware, or executable exploit payloads.</li>
             <li>Child sexual abuse material (CSAM) or non-consensual imagery.</li>
             <li>Content that infringes copyrights, patents, or intellectual property rights.</li>
@@ -43,7 +43,7 @@ export function TermsOfServicePage() {
         </section>
 
         <section className="space-y-2">
-          <h2 className="text-base font-bold text-sendora-900 dark:text-white">
+          <h2 className="text-base font-bold text-paper-950 dark:text-obsidian-100">
             3. File Size and Quotas
           </h2>
           <p>
@@ -52,7 +52,7 @@ export function TermsOfServicePage() {
         </section>
 
         <section className="space-y-2">
-          <h2 className="text-base font-bold text-sendora-900 dark:text-white">
+          <h2 className="text-base font-bold text-paper-950 dark:text-obsidian-100">
             4. Disclaimer of Warranties
           </h2>
           <p>

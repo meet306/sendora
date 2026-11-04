@@ -24,7 +24,6 @@ export function ReceivePage() {
       return;
     }
 
-    // If full URL was pasted, extract path
     if (clean.includes('/t/')) {
       clean = clean.split('/t/')[1].split('?')[0];
     } else if (clean.includes('/r/')) {
@@ -45,7 +44,7 @@ export function ReceivePage() {
         navigate(`/t/${clean}`);
       }
     } catch (err) {
-      setError(err.message || 'Transfer code not found. Please verify and try again.');
+      setError(err.message || 'Transfer code not found. Please verify the code.');
       setLoading(false);
     }
   };
@@ -58,25 +57,25 @@ export function ReceivePage() {
   return (
     <div className="max-w-md mx-auto px-4 sm:px-6 py-16 md:py-24 space-y-8 animate-fade-in">
       <div className="text-center space-y-2">
-        <div className="w-12 h-12 rounded-2xl bg-accent/10 text-accent flex items-center justify-center mx-auto mb-3">
-          <Download className="w-6 h-6" />
+        <div className="w-10 h-10 rounded-xl bg-paper-100 dark:bg-obsidian-800 text-accent flex items-center justify-center mx-auto mb-3 border border-paper-200 dark:border-obsidian-700">
+          <Download className="w-5 h-5" />
         </div>
-        <h1 className="text-2xl font-extrabold tracking-tight text-sendora-900 dark:text-white">
+        <h1 className="text-2xl font-bold tracking-tight text-paper-900 dark:text-obsidian-50">
           Receive Files
         </h1>
-        <p className="text-xs text-sendora-500 max-w-xs mx-auto leading-relaxed">
+        <p className="text-xs text-paper-500 max-w-xs mx-auto leading-relaxed">
           Enter the 6-character code or paste a Sendora link to inspect and download your files.
         </p>
       </div>
 
-      <div className="bg-white dark:bg-sendora-900 rounded-3xl border border-sendora-200 dark:border-sendora-800 p-6 md:p-8 shadow-premium space-y-6">
+      <div className="bg-white dark:bg-obsidian-900 rounded-3xl border border-paper-200 dark:border-obsidian-700 p-6 md:p-8 shadow-card dark:shadow-card-dark space-y-6">
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-mono uppercase tracking-wider text-sendora-700 dark:text-sendora-300 mb-2">
-              Enter Transfer Code
+            <label className="block text-xs font-mono uppercase tracking-wider text-paper-700 dark:text-obsidian-300 mb-2 font-bold">
+              Transfer Code
             </label>
             <div className="relative">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 font-mono font-bold text-sendora-400 select-none">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 font-mono font-bold text-paper-400 select-none">
                 SND-
               </span>
               <input
@@ -90,7 +89,7 @@ export function ReceivePage() {
                   setCode(e.target.value.toUpperCase().replace(/^SND-/, ''));
                   setError(null);
                 }}
-                className="w-full pl-16 pr-4 py-3 font-mono font-bold tracking-widest text-base rounded-xl bg-sendora-50 dark:bg-sendora-800 border border-sendora-200 dark:border-sendora-700 focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent text-sendora-900 dark:text-white uppercase placeholder:tracking-normal placeholder:font-normal placeholder:text-sendora-400"
+                className="w-full pl-16 pr-4 py-3 font-mono font-bold tracking-widest text-base rounded-xl bg-paper-50 dark:bg-obsidian-800 border border-paper-200 dark:border-obsidian-700 focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent text-paper-900 dark:text-white uppercase placeholder:tracking-normal placeholder:font-normal placeholder:text-paper-400"
               />
             </div>
           </div>
@@ -105,7 +104,7 @@ export function ReceivePage() {
           <button
             type="submit"
             disabled={loading || !code.trim()}
-            className="w-full py-3.5 px-6 rounded-xl bg-accent text-white font-semibold text-xs flex items-center justify-center gap-2 hover:bg-accent-hover transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            className="w-full py-3.5 px-6 rounded-xl bg-accent text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 hover:bg-accent-hover transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
             {loading ? (
               <>
@@ -119,10 +118,10 @@ export function ReceivePage() {
           </button>
         </form>
 
-        <div className="pt-4 border-t border-sendora-100 dark:border-sendora-800 text-center">
-          <div className="inline-flex items-center gap-1.5 text-[11px] font-mono text-sendora-400">
+        <div className="pt-4 border-t border-paper-100 dark:border-obsidian-800 text-center">
+          <div className="inline-flex items-center gap-1.5 text-[11px] font-mono text-paper-400">
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-            Direct cryptographic verification via Cloudflare D1
+            Direct cryptographic lookup on Cloudflare edge
           </div>
         </div>
       </div>

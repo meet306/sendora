@@ -14,7 +14,6 @@ export default {
           '-apple-system',
           'BlinkMacSystemFont',
           'Segoe UI',
-          'Roboto',
           'sans-serif'
         ],
         mono: [
@@ -27,35 +26,69 @@ export default {
         ]
       },
       colors: {
+        // Human-designed stone & paper palette
+        paper: {
+          50: '#FDFDFC',
+          100: '#F7F7F5',
+          200: '#EEEEEC',
+          300: '#E2E2DF',
+          400: '#C8C8C4',
+          500: '#8E8E89',
+          600: '#646460',
+          700: '#42423E',
+          800: '#282825',
+          900: '#191917',
+          950: '#0E0E0C'
+        },
+        // Deep obsidian dark mode palette
+        obsidian: {
+          50: '#F4F4F6',
+          100: '#E8E8EC',
+          200: '#CFCFD6',
+          300: '#9C9CA9',
+          400: '#6E6E7D',
+          500: '#484854',
+          600: '#2E2F38',
+          700: '#202128',
+          800: '#16171C',
+          900: '#101115',
+          950: '#090A0D'
+        },
+        // Signature Swiss Vermilion Accent
+        vermilion: {
+          DEFAULT: '#E54D2E',
+          hover: '#D13F20',
+          subtle: '#FFF0EE',
+          dark: '#FF6243'
+        },
+        // Legacy aliases for seamless compatibility
         sendora: {
-          50: '#F8FAFC',
-          100: '#F1F5F9',
-          200: '#E2E8F0',
-          300: '#CBD5E1',
-          400: '#94A3B8',
-          500: '#64748B',
-          600: '#475569',
-          700: '#334155',
-          800: '#1E293B',
-          900: '#0F172A',
-          950: '#090D16'
+          50: '#FDFDFC',
+          100: '#F7F7F5',
+          200: '#EEEEEC',
+          300: '#E2E2DF',
+          400: '#C8C8C4',
+          500: '#8E8E89',
+          600: '#646460',
+          700: '#42423E',
+          800: '#282825',
+          900: '#191917',
+          950: '#0E0E0C'
         },
         accent: {
-          DEFAULT: '#3B82F6',
-          hover: '#2563EB',
-          subtle: '#EFF6FF',
-          dark: '#1D4ED8'
-        },
-        amberAccent: {
-          DEFAULT: '#F59E0B',
-          hover: '#D97706',
-          subtle: '#FEF3C7'
+          DEFAULT: '#E54D2E',
+          hover: '#D13F20',
+          subtle: '#FFF0EE',
+          dark: '#FF6243'
         }
       },
       boxShadow: {
-        'subtle': '0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px 0 rgba(0, 0, 0, 0.03)',
-        'premium': '0 10px 30px -10px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
-        'glow': '0 0 20px -5px rgba(59, 130, 246, 0.3)',
+        'subtle': '0 1px 2px 0 rgba(0, 0, 0, 0.04)',
+        'card': '0 0 0 1px rgba(0, 0, 0, 0.05), 0 2px 4px rgba(0, 0, 0, 0.03)',
+        'card-dark': '0 0 0 1px rgba(255, 255, 255, 0.07), 0 2px 8px rgba(0, 0, 0, 0.4)',
+        'premium': '0 20px 40px -15px rgba(0, 0, 0, 0.07), 0 0 0 1px rgba(0, 0, 0, 0.06)',
+        'premium-dark': '0 20px 40px -15px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.08)',
+        'glow': '0 0 25px -5px rgba(229, 77, 46, 0.35)',
       }
     },
   },
