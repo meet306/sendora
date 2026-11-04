@@ -61,10 +61,9 @@ export function App() {
                 {/* 10. Transfer History */}
                 <Route path="/history" element={<HistoryPage />} />
 
-                {/* 11. Admin Authentication */}
+                {/* 11. Admin Authentication & Dashboard */}
+                <Route path="/admin" element={<AdminDashboardPage />} />
                 <Route path="/admin/login" element={<AdminLoginPage />} />
-
-                {/* 12. Admin Operations Dashboard */}
                 <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
 
                 {/* 13. Privacy Policy */}
