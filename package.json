@@ -1,0 +1,26 @@
+{
+  "name": "sendora-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Sendora - Premium Temporary Cloud File Sharing SaaS",
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "pnpm --filter sendora-web dev",
+    "dev:worker": "pnpm --filter sendora-worker dev",
+    "build": "pnpm --filter sendora-web build",
+    "test": "node scripts/test-runner.js"
+  },
+  "keywords": [
+    "file-sharing",
+    "cloudflare",
+    "r2",
+    "d1",
+    "workers",
+    "react"
+  ],
+  "author": "Sendora Team",
+  "license": "MIT"
+}
