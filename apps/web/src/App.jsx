@@ -18,6 +18,8 @@ import { RequestManagePage } from './pages/RequestManagePage';
 import { HistoryPage } from './pages/HistoryPage';
 import { AdminLoginPage } from './pages/AdminLoginPage';
 import { AdminDashboardPage } from './pages/AdminDashboardPage';
+import { DirectSendPage } from './pages/DirectSendPage';
+import { DirectReceivePage } from './pages/DirectReceivePage';
 import { PrivacyPolicyPage } from './pages/PrivacyPolicyPage';
 import { TermsOfServicePage } from './pages/TermsOfServicePage';
 import { NotFoundPage } from './pages/NotFoundPage';
@@ -60,6 +62,11 @@ export function App() {
 
                 {/* 10. Transfer History */}
                 <Route path="/history" element={<HistoryPage />} />
+
+                {/* 11. Sendora Direct - Local P2P Wi-Fi Transfer */}
+                <Route path="/direct" element={<DirectSendPage />} />
+                <Route path="/direct/:roomId" element={<DirectReceivePage />} />
+                <Route path="/d/:roomId" element={<DirectReceivePage />} />
 
                 {/* 11. Admin Authentication & Dashboard */}
                 <Route path="/admin" element={<AdminDashboardPage />} />

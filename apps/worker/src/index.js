@@ -9,6 +9,7 @@ import downloadsRouter from './routes/downloads.js';
 import requestsRouter from './routes/requests.js';
 import lookupRouter from './routes/lookup.js';
 import adminRouter from './routes/admin.js';
+import p2pRouter from './routes/p2p.js';
 import { runCleanupJob } from './services/cleanup.js';
 
 const app = new Hono();
@@ -37,6 +38,7 @@ app.route('/api/downloads', downloadsRouter);
 app.route('/api/requests', requestsRouter);
 app.route('/api/lookup', lookupRouter);
 app.route('/api/admin', adminRouter);
+app.route('/api/p2p', p2pRouter);
 
 // 404 handler for API routes
 app.notFound((c) => {

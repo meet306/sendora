@@ -9,7 +9,8 @@ import {
   Sun,
   Moon,
   Search,
-  ArrowRight
+  ArrowRight,
+  Zap
 } from 'lucide-react';
 
 export function Navbar() {
@@ -29,6 +30,7 @@ export function Navbar() {
 
   const navLinks = [
     { name: 'Send', path: '/send', icon: Send },
+    { name: 'Direct P2P', path: '/direct', icon: Zap },
     { name: 'Receive', path: '/receive', icon: Download },
     { name: 'Request Drop', path: '/request', icon: FolderInput },
     { name: 'History', path: '/history', icon: History }

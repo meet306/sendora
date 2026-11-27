@@ -211,13 +211,21 @@ export function LandingPage() {
                 </div>
               </div>
 
-              <div className="pt-4 flex flex-wrap items-center gap-4">
+              <div className="pt-4 flex flex-wrap items-center gap-3">
+                <Link
+                  to="/direct"
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-vermilion text-white text-xs font-bold uppercase tracking-wider hover:bg-vermilion-hover transition-colors shadow-subtle"
+                >
+                  <Zap className="w-4 h-4" />
+                  ⚡ Sendora Direct (No Internet P2P)
+                </Link>
+
                 <Link
                   to="/request"
                   className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-paper-300 dark:border-obsidian-700 bg-white dark:bg-obsidian-900 text-xs font-semibold text-paper-900 dark:text-obsidian-100 hover:bg-paper-100 dark:hover:bg-obsidian-800 transition-colors shadow-subtle"
                 >
                   <FolderInput className="w-4 h-4 text-accent" />
-                  Need to receive files? Create Dropzone
+                  Request Dropzone
                 </Link>
 
                 <Link

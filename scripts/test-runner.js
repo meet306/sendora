@@ -16,6 +16,8 @@ import {
 } from '../apps/worker/src/services/crypto.js';
 import { getPresignedR2Url } from '../apps/worker/src/services/r2.js';
 import { runCleanupJob } from '../apps/worker/src/services/cleanup.js';
+import p2pRouter from '../apps/worker/src/routes/p2p.js';
+import { isPlayableVideo } from '../apps/web/src/lib/webrtc.js';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const QRCode = require('../apps/web/node_modules/qrcode');
@@ -423,6 +425,63 @@ async function runTestSuite() {
     const object = await mockBucket.get('private-key');
     assert.ok(object !== null);
     assert.strictEqual(object.key, 'private-key');
+  });
+
+  // 25. Sendora Direct P2P Signaling Lifecycle
+  await test('25. Sendora Direct: P2P room creation, SDP Offer registration and Answer handshake', async () => {
+    const mockEnv = { SENDORA_STORAGE: null };
+
+    // Create room with SDP Offer
+    const createReq = new Request('http://localhost/room', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        filename: 'Inception.2010.1080p.mkv',
+        fileSize: 2400000000, // 2.4 GB Movie
+        fileType: 'video/x-matroska',
+        offer: {
+          type: 'offer',
+          sdp: 'v=0\r\no=- 12345 2 IN IP4 127.0.0.1\r\ns=-\r\nt=0 0\r\n'
+        }
+      })
+    });
+    const createRes = await p2pRouter.fetch(createReq, mockEnv);
+    assert.strictEqual(createRes.status, 200);
+    const roomData = await createRes.json();
+    assert.ok(roomData.roomId.startsWith('D-'));
+
+    // Receiver fetches room
+    const getReq = new Request(`http://localhost/room/${roomData.roomId}`);
+    const getRes = await p2pRouter.fetch(getReq, mockEnv);
+    assert.strictEqual(getRes.status, 200);
+    const fetchedRoom = await getRes.json();
+    assert.strictEqual(fetchedRoom.filename, 'Inception.2010.1080p.mkv');
+    assert.strictEqual(fetchedRoom.fileSize, 2400000000);
+
+    // Receiver posts SDP Answer
+    const answerReq = new Request(`http://localhost/room/${roomData.roomId}/answer`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        answer: {
+          type: 'answer',
+          sdp: 'v=0\r\no=- 54321 2 IN IP4 127.0.0.1\r\ns=-\r\nt=0 0\r\n'
+        }
+      })
+    });
+    const answerRes = await p2pRouter.fetch(answerReq, mockEnv);
+    assert.strictEqual(answerRes.status, 200);
+    const answerData = await answerRes.json();
+    assert.strictEqual(answerData.status, 'connecting');
+  });
+
+  // 26. Playable video detection
+  await test('26. Sendora Direct: Movie/video format detection for in-browser streaming playback', async () => {
+    assert.strictEqual(isPlayableVideo('movie.mp4', 'video/mp4'), true);
+    assert.strictEqual(isPlayableVideo('series.mkv', 'video/x-matroska'), true);
+    assert.strictEqual(isPlayableVideo('clip.webm', 'video/webm'), true);
+    assert.strictEqual(isPlayableVideo('document.pdf', 'application/pdf'), false);
+    assert.strictEqual(isPlayableVideo('archive.zip', 'application/zip'), false);
   });
 
   console.log(`\n${BOLD}Test Results:${RESET} ${GREEN}${passedTests} passed${RESET}, ${failedTests === 0 ? GREEN : RED}${failedTests} failed${RESET} of ${totalTests} total tests.\n`);

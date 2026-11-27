@@ -6,7 +6,7 @@ import { UploadProgressModal } from '../components/UploadProgressModal';
 import { api } from '../lib/api';
 import { MultipartUploader } from '../lib/uploader';
 import { useHistory } from '../context/HistoryContext';
-import { Send, FileText, UploadCloud } from 'lucide-react';
+import { Send, FileText, UploadCloud, Zap, ArrowRight } from 'lucide-react';
 
 export function SendPage() {
   const navigate = useNavigate();
@@ -148,6 +148,30 @@ export function SendPage() {
         <p className="text-xs text-paper-500">
           Stage files or paste code snippets. Generates a temporary link and QR code.
         </p>
+      </div>
+
+      {/* Direct P2P Banner */}
+      <div className="p-3.5 sm:p-4 rounded-2xl bg-paper-100/70 dark:bg-obsidian-900 border border-paper-200 dark:border-obsidian-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-vermilion-subtle dark:bg-obsidian-800 text-vermilion flex items-center justify-center flex-shrink-0">
+            <Zap className="w-4 h-4" />
+          </div>
+          <div>
+            <span className="font-bold text-paper-950 dark:text-obsidian-100 block">
+              Sharing movies, videos, or files on the same Wi-Fi?
+            </span>
+            <span className="text-paper-500 font-mono text-[11px]">
+              Use Sendora Direct for unlimited file size & local Wi-Fi speeds without internet.
+            </span>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => navigate('/direct')}
+          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-vermilion text-white text-[11px] font-bold uppercase tracking-wider hover:bg-vermilion-hover transition-colors shadow-subtle flex-shrink-0"
+        >
+          Launch Direct P2P <ArrowRight className="w-3.5 h-3.5" />
+        </button>
       </div>
 
       {/* Segmented Tab Switcher */}

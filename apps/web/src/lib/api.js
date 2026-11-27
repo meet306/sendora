@@ -158,6 +158,59 @@ export const api = {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     return handleResponse(res);
+  },
+
+  // Sendora Direct - P2P Signaling
+  async createP2PRoom(payload) {
+    const res = await fetch(`${API_BASE}/p2p/room`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    return handleResponse(res);
+  },
+
+  async getP2PRoom(roomId) {
+    const res = await fetch(`${API_BASE}/p2p/room/${encodeURIComponent(roomId)}`);
+    return handleResponse(res);
+  },
+
+  async sendP2PAnswer(roomId, payload) {
+    const res = await fetch(`${API_BASE}/p2p/room/${encodeURIComponent(roomId)}/answer`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    return handleResponse(res);
+  },
+
+  async sendP2PCandidate(roomId, payload) {
+    const res = await fetch(`${API_BASE}/p2p/room/${encodeURIComponent(roomId)}/candidate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    return handleResponse(res);
+  },
+
+  async pollP2PRoom(roomId, role) {
+    const res = await fetch(`${API_BASE}/p2p/room/${encodeURIComponent(roomId)}/poll?role=${encodeURIComponent(role)}`);
+    return handleResponse(res);
+  },
+
+  async updateP2PStatus(roomId, status) {
+    const res = await fetch(`${API_BASE}/p2p/room/${encodeURIComponent(roomId)}/status`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status })
+    });
+    return handleResponse(res);
+  },
+
+  async closeP2PRoom(roomId) {
+    try {
+      await fetch(`${API_BASE}/p2p/room/${encodeURIComponent(roomId)}`, { method: 'DELETE' });
+    } catch (e) {}
   }
 };
 
