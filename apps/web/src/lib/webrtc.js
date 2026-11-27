@@ -4,9 +4,20 @@
 
 const ICE_CONFIG = {
   iceServers: [
-    { urls: 'stun:stun.cloudflare.com:3478' },
     { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:stun1.l.google.com:19302' }
+    { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'stun:stun2.l.google.com:19302' },
+    { urls: 'stun:stun.cloudflare.com:3478' },
+    {
+      urls: [
+        'turn:openrelay.metered.ca:80',
+        'turn:openrelay.metered.ca:443',
+        'turn:openrelay.metered.ca:443?transport=tcp',
+        'turns:openrelay.metered.ca:443?transport=tcp'
+      ],
+      username: 'openrelayproject',
+      credential: 'openrelayproject'
+    }
   ],
   iceCandidatePoolSize: 10
 };
@@ -84,7 +95,18 @@ export class P2PSender {
 
     this.dataChannel.onopen = () => {
       this.onStatusChange('connected');
-      this.startTransfer();
+      setTimeout(() => this.startTransfer(), 50);
+    };
+
+    this.dataChannel.onmessage = (event) => {
+      if (typeof event.data === 'string') {
+        try {
+          const msg = JSON.parse(event.data);
+          if (msg.type === 'receiver_ready') {
+            this.startTransfer();
+          }
+        } catch (e) {}
+      }
     };
 
     this.dataChannel.onerror = (err) => {
@@ -333,9 +355,20 @@ export class P2PReceiver {
   }
 
   setupDataChannel() {
-    this.dataChannel.onopen = () => {
+    const notifyReady = () => {
       this.onStatusChange('connected');
+      try {
+        if (this.dataChannel && this.dataChannel.readyState === 'open') {
+          this.dataChannel.send(JSON.stringify({ type: 'receiver_ready' }));
+        }
+      } catch (e) {}
     };
+
+    if (this.dataChannel.readyState === 'open') {
+      notifyReady();
+    } else {
+      this.dataChannel.onopen = notifyReady;
+    }
 
     this.dataChannel.onerror = (err) => {
       this.onError(new Error(`DataChannel receive error: ${err.message || 'Unknown'}`));

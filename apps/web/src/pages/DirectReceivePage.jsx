@@ -37,6 +37,7 @@ export function DirectReceivePage() {
   const [speedFormatted, setSpeedFormatted] = useState('0 MB/s');
   const [eta, setEta] = useState(0);
   const [connectionStatus, setConnectionStatus] = useState('connecting');
+  const [connectingSeconds, setConnectingSeconds] = useState(0);
 
   // Completed State
   const [downloadUrl, setDownloadUrl] = useState('');
@@ -44,6 +45,19 @@ export function DirectReceivePage() {
 
   const receiverRef = useRef(null);
   const pollTimerRef = useRef(null);
+
+  // Timer to detect long connection attempts
+  useEffect(() => {
+    let t;
+    if (step === 'connecting') {
+      t = setInterval(() => {
+        setConnectingSeconds((s) => s + 1);
+      }, 1000);
+    } else {
+      setConnectingSeconds(0);
+    }
+    return () => clearInterval(t);
+  }, [step]);
 
   // Manual code submit
   const handleCodeSubmit = (e) => {
@@ -101,6 +115,10 @@ export function DirectReceivePage() {
           onStatusChange: (status) => {
             if (isCancelled) return;
             setConnectionStatus(status);
+            if (status === 'failed') {
+              setErrorMessage('Direct P2P connection failed. Ensure both devices are on the same Wi-Fi network.');
+              setStep('error');
+            }
           },
           onError: (err) => {
             if (isCancelled) return;
@@ -245,6 +263,25 @@ export function DirectReceivePage() {
               <Smartphone className="w-4 h-4 text-vermilion" /> This Device
             </div>
           </div>
+
+          {connectingSeconds > 6 && (
+            <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-left space-y-2 animate-fade-in text-xs font-mono">
+              <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400 font-bold">
+                <AlertTriangle className="w-4 h-4" /> Connection Taking Longer than Usual
+              </div>
+              <ul className="text-paper-600 dark:text-obsidian-400 space-y-1 list-disc list-inside text-[11px]">
+                <li>Ensure phone is connected to the same Wi-Fi router (turn off mobile data).</li>
+                <li>Or turn on personal hotspot on phone and connect laptop to it.</li>
+              </ul>
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="w-full mt-2 py-2 rounded-xl bg-amber-600 text-white font-bold uppercase text-[10px] tracking-wider hover:bg-amber-700 transition-colors"
+              >
+                Retry Direct Connection
+              </button>
+            </div>
+          )}
 
           <p className="text-[11px] text-paper-400 dark:text-obsidian-500 font-mono">
             💡 For fastest speed, ensure your laptop and phone are on the same Wi-Fi network.
