@@ -25,6 +25,7 @@ export function DirectSendPage() {
   const [file, setFile] = useState(null);
   const [dragActive, setDragActive] = useState(false);
   const [step, setStep] = useState('select'); // 'select' | 'waiting' | 'transferring' | 'completed' | 'error'
+  const [isStarting, setIsStarting] = useState(false);
 
   // Room & Signaling
   const [roomId, setRoomId] = useState('');
@@ -41,6 +42,7 @@ export function DirectSendPage() {
 
   const senderRef = useRef(null);
   const pollTimerRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   // Drag and drop handlers
   const handleDrag = (e) => {
@@ -70,8 +72,8 @@ export function DirectSendPage() {
 
   // Start P2P session
   const startDirectSession = async () => {
-    if (!file) return;
-    setStep('waiting');
+    if (!file || isStarting) return;
+    setIsStarting(true);
     setErrorMessage('');
 
     try {
@@ -137,9 +139,12 @@ export function DirectSendPage() {
 
       // 4. Start polling for receiver's SDP Answer & candidates
       startSignalingPoll(res.roomId);
+      setStep('waiting');
     } catch (err) {
       setErrorMessage(err.message || 'Failed to initialize direct P2P session');
       setStep('error');
+    } finally {
+      setIsStarting(false);
     }
   };
 
@@ -222,18 +227,20 @@ export function DirectSendPage() {
             onDragLeave={handleDrag}
             onDragOver={handleDrag}
             onDrop={handleDrop}
-            className={`relative rounded-3xl border-2 border-dashed transition-all p-8 sm:p-14 text-center cursor-pointer ${
+            className={`relative rounded-3xl border-2 border-dashed transition-all p-8 sm:p-14 text-center ${
               dragActive
                 ? 'border-vermilion bg-vermilion-subtle/50 dark:bg-vermilion/5 scale-[0.99]'
                 : file
                 ? 'border-paper-300 dark:border-obsidian-700 bg-paper-50 dark:bg-obsidian-900/60'
-                : 'border-paper-300 dark:border-obsidian-800 hover:border-paper-400 dark:hover:border-obsidian-600 bg-white dark:bg-obsidian-950/40'
+                : 'border-paper-300 dark:border-obsidian-800 hover:border-paper-400 dark:hover:border-obsidian-600 bg-white dark:bg-obsidian-950/40 cursor-pointer'
             }`}
           >
+            {/* Input overlay: Only rendered when no file is selected so it never intercepts button clicks */}
             <input
+              ref={fileInputRef}
               type="file"
               onChange={handleFileChange}
-              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+              className={!file ? 'absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10' : 'hidden'}
             />
 
             {!file ? (
@@ -251,13 +258,14 @@ export function DirectSendPage() {
                 </div>
                 <button
                   type="button"
+                  onClick={() => fileInputRef.current?.click()}
                   className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-vermilion text-white text-xs font-bold uppercase tracking-wider shadow-subtle hover:bg-vermilion-hover transition-colors"
                 >
                   Browse Files from Laptop
                 </button>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="relative z-20 space-y-4">
                 <div className="w-16 h-16 rounded-2xl bg-vermilion-subtle dark:bg-obsidian-800 text-vermilion flex items-center justify-center mx-auto shadow-subtle">
                   {isVideo ? <Film className="w-8 h-8" /> : <File className="w-8 h-8" />}
                 </div>
@@ -272,33 +280,43 @@ export function DirectSendPage() {
                       {formatBytes(file.size)}
                     </span>
                   </div>
-                  <h3 className="font-extrabold text-base text-paper-950 dark:text-obsidian-50 truncate">
+                  <h3 className="font-extrabold text-base text-paper-950 dark:text-obsidian-50 truncate" title={file.name}>
                     {file.name}
                   </h3>
                   <p className="text-xs text-paper-500 font-mono">
                     Ready to stream directly to your phone or tablet
                   </p>
                 </div>
-                <div className="flex items-center justify-center gap-3 pt-2">
+                <div className="relative z-30 flex items-center justify-center gap-3 pt-2">
                   <button
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
                       setFile(null);
+                      if (fileInputRef.current) fileInputRef.current.value = '';
                     }}
-                    className="px-4 py-2 rounded-xl border border-paper-300 dark:border-obsidian-700 text-xs font-semibold text-paper-700 dark:text-obsidian-300 hover:bg-paper-100 dark:hover:bg-obsidian-800 transition-colors"
+                    className="px-4 py-2 rounded-xl border border-paper-300 dark:border-obsidian-700 text-xs font-semibold text-paper-700 dark:text-obsidian-300 hover:bg-paper-100 dark:hover:bg-obsidian-800 transition-colors cursor-pointer"
                   >
                     Change File
                   </button>
                   <button
                     type="button"
+                    disabled={isStarting}
                     onClick={(e) => {
                       e.stopPropagation();
                       startDirectSession();
                     }}
-                    className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-vermilion text-white text-xs font-bold uppercase tracking-wider shadow-subtle hover:bg-vermilion-hover transition-all"
+                    className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-vermilion text-white text-xs font-bold uppercase tracking-wider shadow-subtle hover:bg-vermilion-hover transition-all cursor-pointer active:scale-95 disabled:opacity-75 disabled:cursor-not-allowed"
                   >
-                    Start Local Transfer <ArrowRight className="w-4 h-4" />
+                    {isStarting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" /> Starting...
+                      </>
+                    ) : (
+                      <>
+                        Start Local Transfer <ArrowRight className="w-4 h-4" />
+                      </>
+                    )}
                   </button>
                 </div>
               </div>
