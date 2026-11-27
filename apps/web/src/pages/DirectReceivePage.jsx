@@ -97,18 +97,6 @@ export function DirectReceivePage() {
             setCompletedFile(res);
             setStep('completed');
             if (pollTimerRef.current) clearInterval(pollTimerRef.current);
-
-            // Auto-trigger direct download to phone storage
-            try {
-              const a = document.createElement('a');
-              a.href = res.downloadUrl;
-              a.download = res.filename;
-              document.body.appendChild(a);
-              a.click();
-              document.body.removeChild(a);
-            } catch (e) {
-              console.warn('Auto download blocked by browser gesture requirement:', e);
-            }
           },
           onStatusChange: (status) => {
             if (isCancelled) return;
@@ -329,53 +317,19 @@ export function DirectReceivePage() {
       {/* State 3: Completed Transfer */}
       {step === 'completed' && completedFile && (
         <div className="space-y-6 animate-fade-in">
-          {/* Prominent Save-to-Mobile Action Banner (Always visible on mobile without scrolling) */}
-          <div className="p-4 sm:p-6 rounded-3xl bg-gradient-to-r from-emerald-500/10 via-paper-50 to-emerald-500/10 dark:from-emerald-950/40 dark:via-obsidian-900 dark:to-emerald-950/40 border-2 border-emerald-500/30 dark:border-emerald-500/30 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-premium dark:shadow-premium-dark">
-            <div className="flex items-center gap-3.5 w-full sm:w-auto">
-              <div className="w-12 h-12 rounded-2xl bg-emerald-500 text-white flex items-center justify-center shrink-0 shadow-subtle">
-                <Download className="w-6 h-6 stroke-[2.5]" />
-              </div>
-              <div className="space-y-0.5 min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-emerald-500/20 text-emerald-700 dark:text-emerald-300">
-                    ✓ Entire File Received
-                  </span>
-                  <span className="text-xs font-mono font-bold text-paper-700 dark:text-obsidian-300">
-                    {formatBytes(completedFile.fileSize)}
-                  </span>
-                </div>
-                <h3 className="font-extrabold text-sm sm:text-base text-paper-950 dark:text-obsidian-50 truncate" title={completedFile.filename}>
-                  {completedFile.filename}
-                </h3>
-                <p className="text-[11px] text-paper-500 dark:text-obsidian-400 font-mono">
-                  Saved to browser memory • Tap below to save directly to phone files/downloads
-                </p>
-              </div>
-            </div>
-
-            <div className="w-full sm:w-auto flex flex-col sm:flex-row items-center gap-2">
-              <a
-                href={completedFile.downloadUrl}
-                download={completedFile.filename}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-vermilion hover:bg-vermilion-hover text-white text-xs font-bold uppercase tracking-wider transition-all shadow-subtle shrink-0 active:scale-95"
-              >
-                <Download className="w-4 h-4" /> Save Entire Film to Mobile
-              </a>
-            </div>
-          </div>
-
-          {/* If video: render the full in-browser movie stream player */}
+          {/* If video: render the full in-browser movie stream player without forcing download */}
           {completedFile.isVideo ? (
             <div className="space-y-4">
-              <div className="flex items-center justify-between px-1">
-                <span className="text-xs text-paper-500 font-mono">
-                  🎬 Offline Player (Watch without downloading external player apps)
-                </span>
-                <span className="text-xs text-paper-500 font-mono">
+              <div className="p-4 rounded-2xl bg-paper-100 dark:bg-obsidian-900 border border-paper-200 dark:border-obsidian-800 flex items-center justify-between text-xs font-mono">
+                <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-bold">
+                  <Check className="w-4 h-4 stroke-[3]" /> Streaming Ready • 0 MB Saved to Phone Storage
+                </div>
+                <span className="text-paper-500 font-bold">
                   {formatBytes(completedFile.fileSize)}
                 </span>
               </div>
 
+              {/* Full In-Browser Video Player */}
               <MovieStreamPlayer
                 videoUrl={completedFile.downloadUrl}
                 downloadUrl={completedFile.downloadUrl}
@@ -383,6 +337,12 @@ export function DirectReceivePage() {
                 fileSize={completedFile.fileSize}
                 autoPlay={false}
               />
+
+              <div className="text-center pt-2">
+                <p className="text-[11px] text-paper-400 dark:text-obsidian-500 font-mono">
+                  Playing directly from browser memory over local Wi-Fi. No file is stored on your phone unless you click "Save Movie".
+                </p>
+              </div>
             </div>
           ) : (
             /* Non-video file completed card */
