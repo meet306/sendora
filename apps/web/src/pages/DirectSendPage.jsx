@@ -101,10 +101,18 @@ export function DirectSendPage() {
       });
       senderRef.current = sender;
 
-      // 2. Generate SDP Offer
-      const localCandidates = [];
-      const offer = await sender.initializeOffer((candidate) => {
-        localCandidates.push(candidate);
+      // 2. Generate SDP Offer with live candidate streaming
+      let activeRoomId = null;
+      const pendingCandidates = [];
+
+      const offer = await sender.initializeOffer(async (candidate) => {
+        if (activeRoomId) {
+          try {
+            await api.sendP2PCandidate(activeRoomId, { role: 'sender', candidate });
+          } catch (e) {}
+        } else {
+          pendingCandidates.push(candidate);
+        }
       });
 
       // 3. Register room with signaling API
@@ -118,11 +126,14 @@ export function DirectSendPage() {
         }
       });
 
+      activeRoomId = res.roomId;
       setRoomId(res.roomId);
 
-      // Send gathered ICE candidates
-      for (const cand of localCandidates) {
-        await api.sendP2PCandidate(res.roomId, { role: 'sender', candidate: cand });
+      // Flush candidates gathered before room ID was returned
+      for (const cand of pendingCandidates) {
+        try {
+          await api.sendP2PCandidate(res.roomId, { role: 'sender', candidate: cand });
+        } catch (e) {}
       }
 
       // Generate QR Code pointing to direct receiver
@@ -137,7 +148,7 @@ export function DirectSendPage() {
       });
       setQrDataUrl(qrUrl);
 
-      // 4. Start polling for receiver's SDP Answer & candidates
+      // 4. Start high-frequency polling for receiver's SDP Answer & candidates (400ms)
       startSignalingPoll(res.roomId);
       setStep('waiting');
     } catch (err) {
@@ -148,7 +159,7 @@ export function DirectSendPage() {
     }
   };
 
-  // Poll for receiver handshake
+  // Poll for receiver handshake (fast 400ms interval for sub-second pairing)
   const startSignalingPoll = (targetRoomId) => {
     let answerApplied = false;
 
@@ -175,7 +186,7 @@ export function DirectSendPage() {
       } catch (err) {
         // Silent poll error or room closed
       }
-    }, 1000);
+    }, 400);
   };
 
   const copyDirectLink = () => {

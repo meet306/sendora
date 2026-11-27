@@ -110,10 +110,11 @@ export function DirectReceivePage() {
         });
         receiverRef.current = receiver;
 
-        // 3. Process SDP offer & generate SDP answer
-        const localCandidates = [];
-        const answer = await receiver.handleOffer(room.offer, (cand) => {
-          localCandidates.push(cand);
+        // 3. Process SDP offer & generate SDP answer with live candidate streaming
+        const answer = await receiver.handleOffer(room.offer, async (cand) => {
+          try {
+            await api.sendP2PCandidate(activeRoomId, { role: 'receiver', candidate: cand });
+          } catch (e) {}
         });
 
         // 4. Send SDP answer to signaling server
@@ -124,11 +125,6 @@ export function DirectReceivePage() {
           }
         });
 
-        // Send receiver ICE candidates
-        for (const cand of localCandidates) {
-          await api.sendP2PCandidate(activeRoomId, { role: 'receiver', candidate: cand });
-        }
-
         // Apply any sender ICE candidates already available
         if (room.senderCandidates && room.senderCandidates.length > 0) {
           for (const cand of room.senderCandidates) {
@@ -136,7 +132,7 @@ export function DirectReceivePage() {
           }
         }
 
-        // 5. Start candidate polling
+        // 5. Start candidate polling (fast 400ms interval for immediate pairing)
         pollTimerRef.current = setInterval(async () => {
           try {
             const pollData = await api.pollP2PRoom(activeRoomId, 'receiver');
@@ -146,7 +142,7 @@ export function DirectReceivePage() {
               }
             }
           } catch (e) {}
-        }, 1200);
+        }, 400);
       } catch (err) {
         if (isCancelled) return;
         setErrorMessage(err.message || 'Direct transfer room not found or expired');
@@ -249,6 +245,10 @@ export function DirectReceivePage() {
               <Smartphone className="w-4 h-4 text-vermilion" /> This Device
             </div>
           </div>
+
+          <p className="text-[11px] text-paper-400 dark:text-obsidian-500 font-mono">
+            💡 For fastest speed, ensure your laptop and phone are on the same Wi-Fi network.
+          </p>
         </div>
       )}
 

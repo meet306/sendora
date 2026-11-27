@@ -100,7 +100,27 @@ export class P2PSender {
     const offer = await this.pc.createOffer();
     await this.pc.setLocalDescription(offer);
 
-    return offer;
+    // Wait briefly for local ICE candidates (host Wi-Fi IP) so they are baked directly into offer.sdp
+    // This allows the receiver to connect in under 300ms without waiting for candidate roundtrips
+    await new Promise((resolve) => {
+      if (this.pc.iceGatheringState === 'complete') {
+        resolve();
+      } else {
+        const check = () => {
+          if (this.pc.iceGatheringState === 'complete') {
+            this.pc.removeEventListener('icegatheringstatechange', check);
+            resolve();
+          }
+        };
+        this.pc.addEventListener('icegatheringstatechange', check);
+        setTimeout(resolve, 800);
+      }
+    });
+
+    return {
+      type: this.pc.localDescription.type,
+      sdp: this.pc.localDescription.sdp
+    };
   }
 
   async applyAnswer(answer) {
@@ -149,11 +169,15 @@ export class P2PSender {
 
     const waitForBufferDrain = () => {
       return new Promise((resolve) => {
+        let timer;
         const handler = () => {
+          clearTimeout(timer);
           this.dataChannel.removeEventListener('bufferedamountlow', handler);
           resolve();
         };
         this.dataChannel.addEventListener('bufferedamountlow', handler);
+        // Safety timeout so transfer never hangs if browser event is delayed
+        timer = setTimeout(handler, 80);
       });
     };
 
@@ -277,7 +301,26 @@ export class P2PReceiver {
     const answer = await this.pc.createAnswer();
     await this.pc.setLocalDescription(answer);
 
-    return answer;
+    // Wait briefly for local ICE candidates (host Wi-Fi IP) so they are baked directly into answer.sdp
+    await new Promise((resolve) => {
+      if (this.pc.iceGatheringState === 'complete') {
+        resolve();
+      } else {
+        const check = () => {
+          if (this.pc.iceGatheringState === 'complete') {
+            this.pc.removeEventListener('icegatheringstatechange', check);
+            resolve();
+          }
+        };
+        this.pc.addEventListener('icegatheringstatechange', check);
+        setTimeout(resolve, 800);
+      }
+    });
+
+    return {
+      type: this.pc.localDescription.type,
+      sdp: this.pc.localDescription.sdp
+    };
   }
 
   async addIceCandidate(candidate) {
